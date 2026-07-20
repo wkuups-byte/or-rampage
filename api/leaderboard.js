@@ -45,7 +45,8 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      res.setHeader('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=30');
+      // No CDN caching: a cached board reads as "my score vanished" right after a post.
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(200).json({ scores: await topScores() });
     }
 

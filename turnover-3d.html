@@ -1581,11 +1581,12 @@ function lbRender(scores, mine){
 
 async function lbLoad(){
   try{
-    const r=await fetch('/api/leaderboard');
+    const r=await fetch('/api/leaderboard?t='+Date.now(),{cache:'no-store'});
     if(!r.ok) throw 0;
     const d=await r.json();
     lbRender(d.scores, lbNameEl.value.trim().toUpperCase());
-  }catch(e){ lbStatusEl.textContent='leaderboard offline'; }
+    return d.scores||[];
+  }catch(e){ lbStatusEl.textContent='leaderboard offline'; return null; }
 }
 
 async function lbPost(){
@@ -1601,6 +1602,8 @@ async function lbPost(){
     lbPosted=true;
     lbStatusEl.textContent='posted · top 10';
     lbRender(d.scores, name);
+    // The write can land a beat before it is readable; re-read if we're not in the list yet.
+    if(!(d.scores||[]).some(s=>s.name===name)) setTimeout(lbLoad,1200);
   }catch(e){
     lbStatusEl.textContent='could not post — try again';
     lbSubmitEl.disabled=false;
