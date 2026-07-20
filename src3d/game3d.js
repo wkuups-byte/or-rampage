@@ -270,6 +270,12 @@ const steelCanvas=document.createElement('canvas'); steelCanvas.width=steelCanva
     c.fillRect(Math.random()*128,Math.random()*128,rand(6,30),1); } }
 const steelTex=new THREE.CanvasTexture(steelCanvas);
 steelTex.wrapS=steelTex.wrapT=THREE.RepeatWrapping; steelTex.encoding=THREE.sRGBEncoding;
+/* photo textures (seam-fixed tiles served from /textures); procedural canvases remain the fallback */
+const texImg={};
+function loadTex(name,file,cb){ const im=new Image();
+  im.onload=()=>{ texImg[name]=im; cb&&cb(im); }; im.onerror=()=>{}; im.src=file; }
+loadTex('steel','textures/steel.jpg',im=>{ steelCanvas.width=steelCanvas.height=256;
+  steelCanvas.getContext('2d').drawImage(im,0,0,256,256); steelTex.needsUpdate=true; });
 addEventListener('resize',()=>{ VW=innerWidth; VH=innerHeight;
   camera.aspect=VW/VH; camera.updateProjectionMatrix(); renderer.setSize(VW,VH,false); });
 
@@ -358,14 +364,20 @@ function drawMonitors(t){
 drawMonitors(0);
 function paintFloor(){
   const c=floorCanvas.getContext('2d');
-  // seamless epoxy look: base + speckle + faint sheet seams
-  c.fillStyle='#cfdcd8'; c.fillRect(0,0,W,H);
-  for(let i=0;i<9000;i++){ c.fillStyle=Math.random()<.5?'rgba(90,120,115,.10)':'rgba(255,255,255,.13)';
-    c.fillRect(Math.random()*W,Math.random()*H,2.4,2.4); }
-  c.strokeStyle='rgba(100,130,125,.15)'; c.lineWidth=2; c.beginPath();
-  for(let x=0;x<=W;x+=120){ c.moveTo(x,0); c.lineTo(x,H); }
-  for(let y=0;y<=H;y+=120){ c.moveTo(0,y); c.lineTo(W,y); }
-  c.stroke();
+  if(texImg.floor){
+    // photo sheet vinyl, one repeat per 400 units
+    const s=400/texImg.floor.width; c.save(); c.scale(s,s);
+    c.fillStyle=c.createPattern(texImg.floor,'repeat'); c.fillRect(0,0,W/s,H/s); c.restore();
+  }else{
+    // seamless epoxy look: base + speckle + faint sheet seams
+    c.fillStyle='#cfdcd8'; c.fillRect(0,0,W,H);
+    for(let i=0;i<9000;i++){ c.fillStyle=Math.random()<.5?'rgba(90,120,115,.10)':'rgba(255,255,255,.13)';
+      c.fillRect(Math.random()*W,Math.random()*H,2.4,2.4); }
+    c.strokeStyle='rgba(100,130,125,.15)'; c.lineWidth=2; c.beginPath();
+    for(let x=0;x<=W;x+=120){ c.moveTo(x,0); c.lineTo(x,H); }
+    for(let y=0;y<=H;y+=120){ c.moveTo(0,y); c.lineTo(W,y); }
+    c.stroke();
+  }
   // contrasting surgical zones under both OR tables
   for(const t of [[600,380],[1800,380]]){
     c.fillStyle='rgba(122,166,158,.35)';
@@ -383,22 +395,34 @@ function paintFloor(){
   floorTex.needsUpdate=true;
 }
 paintFloor();
+loadTex('floor','textures/floor.jpg',paintFloor);
 { const fl=new THREE.Mesh(new THREE.PlaneGeometry(W,H),
     new THREE.MeshStandardMaterial({map:floorTex,roughness:.4,metalness:.06,envMapIntensity:.45}));
   fl.rotation.x=-Math.PI/2; fl.position.set(W/2,0,H/2); fl.receiveShadow=true; scene.add(fl);
   const ceilCanvas=document.createElement('canvas'); ceilCanvas.width=1200; ceilCanvas.height=750;
-  const cc=ceilCanvas.getContext('2d');
-  cc.fillStyle='#94a5a1'; cc.fillRect(0,0,1200,750);
-  cc.strokeStyle='rgba(60,80,76,.55)'; cc.lineWidth=1.5; cc.beginPath();
-  for(let x=0;x<=1200;x+=30){ cc.moveTo(x,0); cc.lineTo(x,750); }
-  for(let y=0;y<=750;y+=30){ cc.moveTo(0,y); cc.lineTo(1200,y); }
-  cc.stroke();
-  for(let x=45;x<1160;x+=180) for(let y=40;y<720;y+=150){
-    cc.fillStyle='#f6fffa'; cc.fillRect(x,y,62,28);
-    cc.strokeStyle='rgba(110,130,126,.9)'; cc.lineWidth=2; cc.strokeRect(x,y,62,28); }
   const ceilTex=new THREE.CanvasTexture(ceilCanvas);
   ceilTex.minFilter=THREE.LinearFilter; ceilTex.generateMipmaps=false;
   ceilTex.encoding=THREE.sRGBEncoding;
+  const paintCeil=()=>{
+    const cc=ceilCanvas.getContext('2d');
+    if(texImg.ceil){
+      // photo mineral-fiber tile, one repeat per 75px cell (rows line up with the troffer pitch)
+      const s=75/texImg.ceil.width; cc.save(); cc.scale(s,s);
+      cc.fillStyle=cc.createPattern(texImg.ceil,'repeat'); cc.fillRect(0,0,1200/s,750/s); cc.restore();
+    }else{
+      cc.fillStyle='#94a5a1'; cc.fillRect(0,0,1200,750);
+      cc.strokeStyle='rgba(60,80,76,.55)'; cc.lineWidth=1.5; cc.beginPath();
+      for(let x=0;x<=1200;x+=30){ cc.moveTo(x,0); cc.lineTo(x,750); }
+      for(let y=0;y<=750;y+=30){ cc.moveTo(0,y); cc.lineTo(1200,y); }
+      cc.stroke();
+    }
+    for(let x=45;x<1160;x+=180) for(let y=40;y<720;y+=150){
+      cc.fillStyle='#f6fffa'; cc.fillRect(x,y,62,28);
+      cc.strokeStyle='rgba(110,130,126,.9)'; cc.lineWidth=2; cc.strokeRect(x,y,62,28); }
+    ceilTex.needsUpdate=true;
+  };
+  paintCeil();
+  loadTex('ceil','textures/ceiling.jpg',paintCeil);
   ceilMat=new THREE.MeshBasicMaterial({map:ceilTex});
   const ce=new THREE.Mesh(new THREE.PlaneGeometry(W,H), ceilMat);
   ce.rotation.x=Math.PI/2; ce.position.set(W/2,CEIL,H/2); scene.add(ce); }
@@ -407,14 +431,25 @@ function stain(x,y,col,r){ const c=floorCanvas.getContext('2d'); c.save(); c.tra
   c.arc(rand(-r,r),rand(-r,r),rand(4,r/2),0,7); c.fill(); } c.restore(); floorTex.needsUpdate=true; }
 
 /* static walls: two-tone with integral cove base + bumper rail */
+const wallMeshes=[];
 for(const r of walls){ const m=new THREE.Mesh(new THREE.BoxGeometry(r.w,140,r.h), mat('#41706a'));
   m.position.set(r.x+r.w/2,70,r.y+r.h/2); m.castShadow=HQ; m.receiveShadow=true; scene.add(m);
+  m.userData.wallLen=Math.max(r.w,r.h); wallMeshes.push(m);
   const upper=new THREE.Mesh(new THREE.BoxGeometry(r.w+1,50,r.h+1), mat('#578b83'));
   upper.position.set(r.x+r.w/2,110,r.y+r.h/2); scene.add(upper);
   const cove=new THREE.Mesh(new THREE.BoxGeometry(r.w+3,10,r.h+3), mat('#39605a'));
   cove.position.set(r.x+r.w/2,5,r.y+r.h/2); scene.add(cove);
   const rail=new THREE.Mesh(new THREE.BoxGeometry(r.w+6,9,r.h+6), mat('#8fb5ae'));
   rail.position.set(r.x+r.w/2,44,r.y+r.h/2); scene.add(rail); }
+/* photo ceramic-tile wainscot on the walls, one texture repeat per 140 units of run */
+loadTex('wall','textures/wall.jpg',im=>{
+  const base=new THREE.Texture(im); base.encoding=THREE.sRGBEncoding;
+  for(const m of wallMeshes){
+    const t=base.clone(); t.image=im; t.wrapS=t.wrapT=THREE.RepeatWrapping;
+    t.repeat.set(m.userData.wallLen/140,1); t.needsUpdate=true;
+    m.material=new THREE.MeshStandardMaterial({color:0x9fc0b8,map:t,roughness:.32,metalness:.03,envMapIntensity:.5});
+  }
+});
 
 /* static deco: PACU curtains, door frames w/ X-ray lights, wet floor sign */
 { const deco=new THREE.Group();
