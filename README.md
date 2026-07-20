@@ -4,8 +4,8 @@ OR turnover stress-relief game. Smash the operating suite, run up the damage bil
 
 ## Play
 
-- **2D top-down** — `index.html` (site root)
-- **3D first-person** — `turnover-3d.html` (desktop pointer-lock; mobile touch controls auto-detect, `?touch=1` to force)
+- **3D first-person** — `index.html` (site root; also at `turnover-3d.html`). Desktop pointer-lock; mobile touch controls auto-detect, `?touch=1` to force.
+- **2D top-down** — `2d.html`
 
 ## Structure
 
