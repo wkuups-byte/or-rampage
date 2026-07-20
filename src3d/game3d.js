@@ -767,25 +767,34 @@ function buildGasMesh(o){
   return g;
 }
 function buildJanMesh(){
-  const g=new THREE.Group(); blob(g,17); const U=g.userData;
-  U.legL=mkLimb2(g,0,42,-4.5,21,21,3.4,'#1c2226','#1c2226','#111417',0,true);
-  U.legR=mkLimb2(g,0,42,4.5,21,21,3.4,'#1c2226','#1c2226','#111417',0,true);
-  { const t=new THREE.Mesh(new THREE.CylinderGeometry(7.5,9.5,34,12), mat('#232a2e'));
-    t.position.set(1.5,59,0); t.rotation.z=-.14; g.add(t); U.torso=t; }
-  bx(g,1,5,4,'#171c1f',8.6,62,3); bx(g,1,4,5,'#171c1f',8.2,52,-4);
-  bx(g,4.5,6,1.5,'#8a8f92',9.5,61,4,true);
-  bx(g,1.4,3,1.2,'#c8b040',2,42,7,true); bx(g,1.2,2.4,1,'#9aa0a4',3.8,42,7.6,true);
-  U.armL=mkLimb2(g,3,74,-11,16,16,2.9,'#232a2e','#232a2e','#d8d2c4',3.3,false);
-  U.armR=mkLimb2(g,3,74,11,16,16,2.9,'#232a2e','#232a2e','#d8d2c4',3.3,false);
+  // short, wide and wrong: stubby legs, a gut, and a too-big pale head
+  const g=new THREE.Group(); blob(g,19); const U=g.userData;
+  U.legL=mkLimb2(g,0,24,-6,12,12,4.4,'#1c2226','#1c2226','#111417',0,true);
+  U.legR=mkLimb2(g,0,24,6,12,12,4.4,'#1c2226','#1c2226','#111417',0,true);
+  { const t=new THREE.Mesh(new THREE.CylinderGeometry(11,14.5,26,14), mat('#232a2e'));
+    t.position.set(1.5,37,0); t.rotation.z=-.1; t.scale.set(1.25,1,1.12); g.add(t); U.torso=t; }
+  { const belly=new THREE.Mesh(new THREE.SphereGeometry(11.5,14,12), mat('#232a2e'));
+    belly.position.set(6,30,0); belly.scale.set(1.05,.85,1.15); g.add(belly); }
+  bx(g,1,5,4,'#171c1f',15.5,42,3); bx(g,1,4,5,'#171c1f',15,33,-4);
+  bx(g,4.5,6,1.5,'#8a8f92',16.4,41,4,true);
+  bx(g,1.4,3,1.2,'#c8b040',9,26,10,true); bx(g,1.2,2.4,1,'#9aa0a4',10.8,26,10.6,true);
+  U.armL=mkLimb2(g,3,48,-16,12,12,3.4,'#232a2e','#232a2e','#e2ded2',3.6,false);
+  U.armR=mkLimb2(g,3,48,16,12,12,3.4,'#232a2e','#232a2e','#e2ded2',3.6,false);
   { const mop=new THREE.Group();
     const h=cyl(mop,1.6,1.6,96,'#6a5a3a',0,10,0); h.rotation.z=-.2;
     const head=sph(mop,8.5,'#cfc8b8',10,-38,0); head.scale.y=.5;
     sph(mop,4,'#7d1424',13,-39,3);
-    mop.position.set(6,-14,2); U.armR.lo.add(mop); }
-  mkHead(g,U,93,8,'#d8d2c4','#4a5054','#454e54',null);
+    mop.scale.setScalar(.78); mop.position.set(6,-2,2); U.armR.lo.add(mop); }
+  mkHead(g,U,60,9.5,'#e2ded2','#4a5054','#454e54',null);
   U.head.position.x=4;
+  U.head.children[1].visible=false;                       // no jaw: the face texture owns the mouth
+  U.head.children[7].visible=U.head.children[8].visible=false;  // ...and the brows
+  U.head.children[4].visible=false;                             // ...and the nose ball: the painted face has one
+  loadTex('face','textures/janitor-face.jpg',im=>{
+    const t=new THREE.Texture(im); t.encoding=THREE.sRGBEncoding; t.needsUpdate=true;
+    U.head.children[0].material=new THREE.MeshStandardMaterial({map:t,roughness:.55,metalness:0});
+  });
   U.eyeL.material=bmat('#0a0c0d'); U.eyeR.material=bmat('#0a0c0d');
-  bx(U.head,1,.8,4,'#0a0c0d',8.2,-4.2,0,true);
   return g;
 }
 
@@ -1472,7 +1481,7 @@ function syncVisuals(dt){
     camera.rotation.set(camPitch,camYaw,shake>0?rand(-1,1)*.004*shake:0);
   } else if(state==='dying'){
     camera.position.set(player.x,66,player.y);
-    camera.lookAt(janitor.x,84,janitor.y);
+    camera.lookAt(janitor.x,58,janitor.y);
   }
   camera.updateMatrixWorld();
   camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
@@ -1512,7 +1521,7 @@ function syncVisuals(dt){
     else el.style.display='none';
   }
   { const el=bubbleFor(janitor,'dark');
-    if(janitor.lineT>0){ el.textContent=janitor.line; projectTo(el,janitor.x,108,janitor.y,true); }
+    if(janitor.lineT>0){ el.textContent=janitor.line; projectTo(el,janitor.x,82,janitor.y,true); }
     else el.style.display='none'; }
   // crosshair hint
   crossDot.style.opacity=aimTarget()?1:0;
