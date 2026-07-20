@@ -1360,7 +1360,67 @@ function finishDeath(){
   document.getElementById('deathScore').textContent='$'+score.toLocaleString('en-US')+' in damages · '+Math.round(broken/total*100)+'% turnover';
   document.getElementById('deathLine').textContent='"'+pick(["all messes end the same way.","you were the mess.","spotless, now.","i mopped where you stood."])+'" — the janitor';
   document.getElementById('deathOv').style.display='flex';
+  lbOnDeath();
 }
+
+/* ============================== leaderboard ============================== */
+const LB_KEY='turnover3d.name';
+const lbNameEl=document.getElementById('lbName'), lbSubmitEl=document.getElementById('lbSubmit');
+const lbStatusEl=document.getElementById('lbStatus'), lbListEl=document.getElementById('lbList');
+let lbPosted=false;
+
+function lbRender(scores, mine){
+  lbListEl.innerHTML='';
+  if(!scores||!scores.length) return;
+  scores.forEach((s,i)=>{
+    const li=document.createElement('li');
+    if(mine && s.name===mine) li.className='me';
+    const rk=document.createElement('span'); rk.className='rk'; rk.textContent=(i+1)+'.';
+    const nm=document.createElement('span'); nm.className='nm'; nm.textContent=s.name;
+    const sc=document.createElement('span'); sc.className='sc'; sc.textContent='$'+Number(s.score).toLocaleString('en-US');
+    li.append(rk,nm,sc); lbListEl.appendChild(li);
+  });
+}
+
+async function lbLoad(){
+  try{
+    const r=await fetch('/api/leaderboard');
+    if(!r.ok) throw 0;
+    const d=await r.json();
+    lbRender(d.scores, lbNameEl.value.trim().toUpperCase());
+  }catch(e){ lbStatusEl.textContent='leaderboard offline'; }
+}
+
+async function lbPost(){
+  const name=lbNameEl.value.trim().toUpperCase();
+  if(!name){ lbStatusEl.textContent='enter a name first'; lbNameEl.focus(); return; }
+  lbSubmitEl.disabled=true; lbStatusEl.textContent='posting…';
+  try{
+    const r=await fetch('/api/leaderboard',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name,score})});
+    if(!r.ok) throw 0;
+    const d=await r.json();
+    try{ localStorage.setItem(LB_KEY,name); }catch(e){}
+    lbPosted=true;
+    lbStatusEl.textContent='posted · top 10';
+    lbRender(d.scores, name);
+  }catch(e){
+    lbStatusEl.textContent='could not post — try again';
+    lbSubmitEl.disabled=false;
+  }
+}
+
+function lbOnDeath(){
+  lbPosted=false; lbSubmitEl.disabled=false; lbStatusEl.textContent='';
+  try{ lbNameEl.value=localStorage.getItem(LB_KEY)||''; }catch(e){}
+  lbLoad();
+}
+
+lbSubmitEl.addEventListener('click',lbPost);
+lbNameEl.addEventListener('keydown',e=>{
+  e.stopPropagation(); // the game listens for R/P/space globally
+  if(e.key==='Enter'&&!lbPosted) lbPost();
+});
 function restart(){ document.getElementById('deathOv').style.display='none';
   vigEl.style.opacity=0; init(); state='play'; tryLock(); }
 
