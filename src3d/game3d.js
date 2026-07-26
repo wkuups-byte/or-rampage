@@ -238,7 +238,8 @@ const SKINS={ 'Deb':{skin:'#e8c9a8',hair:'#6a4a2a'}, 'Randy':{skin:'#8d5a3b',hai
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x0a1514);
 scene.fog=new THREE.Fog(0x0a1514, 850, 2600);
-const camera=new THREE.PerspectiveCamera(78, VW/VH, 1, 5000);
+const baseFov=()=>VW/VH<0.8?92:78;   // portrait phones need a wider view
+const camera=new THREE.PerspectiveCamera(baseFov(), VW/VH, 1, 5000);
 camera.rotation.order='YXZ';
 scene.add(camera);
 const HQ=!IS_TOUCH;
@@ -281,7 +282,8 @@ function loadTex(name,file,cb){ const im=new Image();
 loadTex('steel','textures/steel.jpg',im=>{ steelCanvas.width=steelCanvas.height=256;
   steelCanvas.getContext('2d').drawImage(im,0,0,256,256); steelTex.needsUpdate=true; });
 addEventListener('resize',()=>{ VW=innerWidth; VH=innerHeight;
-  camera.aspect=VW/VH; camera.updateProjectionMatrix(); renderer.setSize(VW,VH,false); });
+  camera.aspect=VW/VH; camera.fov=baseFov();
+  camera.updateProjectionMatrix(); renderer.setSize(VW,VH,false); });
 
 const matCache={}, bmatCache={}, smatCache={};
 function mat(c){ return matCache[c]||(matCache[c]=new THREE.MeshStandardMaterial({color:c,roughness:.82,metalness:.02})); }
@@ -925,9 +927,18 @@ function projectTo(el,x,h,z,scaleRef){
   if(tmpV2.z>-4){ el.style.display='none'; return false; }
   tmpV.project(camera);
   el.style.display='block';
-  el.style.left=((tmpV.x*.5+.5)*VW)+'px';
-  el.style.top=((-tmpV.y*.5+.5)*VH)+'px';
-  if(scaleRef){ const s=clamp(560/-tmpV2.z,.45,1.6); el.style.scale=s; }
+  const s=scaleRef?clamp(560/-tmpV2.z,.45,1.6):1;
+  // scale must live INSIDE the transform chain (after the anchoring translate) or the
+  // visual center drifts off the anchor and clamping can't keep the text on screen
+  const isBub=el.classList.contains('bub');
+  el.style.transform=(isBub?'translate(-50%,-100%)':'translate(-50%,-50%)')+' scale('+s+')';
+  // clamp into the viewport so labels never get cut off at the edges (phones especially)
+  const w=el.offsetWidth||0, h2=el.offsetHeight||0;
+  const hw=w*s/2+4;
+  const topMin=isBub? h2*(1+s)/2+6 : h2*s/2+4;
+  const topMax=isBub? VH-6-(s-1)*h2/2 : VH-h2*s/2-4;
+  el.style.left=clamp((tmpV.x*.5+.5)*VW, hw, VW-hw)+'px';
+  el.style.top=clamp((-tmpV.y*.5+.5)*VH, topMin, topMax)+'px';
   return true;
 }
 const pops=[];
@@ -1339,7 +1350,7 @@ function update(dt){
   moveCircle(P,dt);
   stepT-=dt;
   if(moving&&stepT<=0){ stepT=dashing?.16:.34; sfxStep(); }
-  const tgtFov=dashing?86:78;
+  const tgtFov=baseFov()+(dashing?8:0);
   if(Math.abs(camera.fov-tgtFov)>.1){ camera.fov+=(tgtFov-camera.fov)*Math.min(1,dt*10); camera.updateProjectionMatrix(); }
   P.swing=Math.max(0,P.swing-dt); P.swingCd-=dt; P.dashT-=dt; P.dashCd-=dt; P.stun-=dt; P.inv-=dt;
   if(moving&&!dashing) headBob+=dt*(P.spd()>300?14:9); else headBob*=.9;
