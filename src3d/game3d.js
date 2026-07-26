@@ -10,7 +10,7 @@ if(IS_TOUCH){
     'Smash everything. O₂ tanks explode. Kick buckets were made to be kicked.<br>'+
     'The staff will not help you. Watch the MOP RADAR. He is already walking.<br>'+
     'Feeling brave? Swing at the janitor. His mop is worth taking — twice, and he drops a syringe.<br>'+
-    'Reps shadow the surgeons — bump one for the demo mallet, again for a speed boost. Hell yeah.';
+    'Reps shadow the surgeons — bump one for a speed boost, and the demo mallet comes free. Hell yeah.';
 }
 const rand=(a,b)=>a+Math.random()*(b-a);
 const pick=a=>a[Math.floor(Math.random()*a.length)];
@@ -950,17 +950,17 @@ function buildGasMesh(o){
   return g;
 }
 function buildRepMesh(o){
-  // device rep: blue scrubs, red hat, lanyard, demo case. never more than 20 feet from the OR.
+  // device rep: dark navy scrubs, red hat, lanyard, demo case. never more than 20 feet from the OR.
   const g=new THREE.Group(); blob(g,16); const U=g.userData;
-  U.legL=mkLimb2(g,0,36,-5.5,18,18,4,'#3a78c2','#3a78c2','#6a4a30',0,true);
-  U.legR=mkLimb2(g,0,36,5.5,18,18,4,'#3a78c2','#3a78c2','#6a4a30',0,true);
-  { const t=new THREE.Mesh(new THREE.CylinderGeometry(10,11.5,29,14), mat('#3a78c2'));
+  U.legL=mkLimb2(g,0,36,-5.5,18,18,4,'#28497c','#28497c','#6a4a30',0,true);
+  U.legR=mkLimb2(g,0,36,5.5,18,18,4,'#28497c','#28497c','#6a4a30',0,true);
+  { const t=new THREE.Mesh(new THREE.CylinderGeometry(10,11.5,29,14), mat('#28497c'));
     t.position.y=50.5; t.scale.set(1.18,1,1); g.add(t); U.torso=t; }
   bx(g,3.5,10,1.5,'#f4d648',12.2,58,0,true);            // lanyard badge, gold
   bx(g,1.6,12,3,'#c0392b',12.4,55,-4,true);             // lanyard strap
   bx(g,7,3,1.5,'#f6fafa',12.2,63,0,true);               // scrub-top v-neck trim
-  U.armL=mkLimb2(g,0,62,-14,14,13,3.5,'#3a78c2',o.skin,o.skin,3.8,false);
-  U.armR=mkLimb2(g,0,62,14,14,13,3.5,'#3a78c2',o.skin,o.skin,3.8,false);
+  U.armL=mkLimb2(g,0,62,-14,14,13,3.5,'#28497c',o.skin,o.skin,3.8,false);
+  U.armR=mkLimb2(g,0,62,14,14,13,3.5,'#28497c',o.skin,o.skin,3.8,false);
   U.armL.up.rotation.x=-.25; U.armL.lo.rotation.z=1.4; U.pinL=true;
   { const kit=new THREE.Group();                        // the demo case
     bx(kit,16,10,6,'#3a3f44',0,0,0); bx(kit,16,2,1,'#f4d648',0,1,3.2,true);
@@ -1491,23 +1491,26 @@ function npcBumped(n,hit){
   }
   else if(n.kind==='gas'){ say(n,pick(GAS_BUMP)); }
   else if(n.kind==='rep'){
+    let gaveMallet=false;
     if((n.malletCd||0)<=0){
-      // the demo mallet comes off the truck first
-      n.malletCd=24; pMalletT=10;
+      n.malletCd=24; pMalletT=10; gaveMallet=true;
       if(mopT<=0){ mallet.visible=false; pmalletVM.visible=true; }
       say(n,pick(REP_MALLET));
       showBanner('STRYKER DEMO MALLET!');
       addPop(player.x,player.y,'POWER MALLET','#ffd27a',18,80);
       burst(n.x,n.y,14,'#ffd27a',220,.8);
       sfxClang(); sfxBeep(880,.09,.06); sfxBeep(1174,.09,.05);
-    } else if((n.boostCd||0)<=0){
+    }
+    if((n.boostCd||0)<=0){
       n.boostCd=10; player.boostT=5;
-      say(n,pick(REP_BOOST));
-      showBanner('STRYKER POWER-UP!');
       addPop(player.x,player.y,'SPEED BOOST','#8affc1',16,80);
-      burst(n.x,n.y,14,'#ffb52e',220,.8);
-      sfxWhoosh(); sfxBeep(1320,.09,.06); sfxBeep(1760,.09,.05);
-    } else say(n,pick(REP_IDLE));
+      if(!gaveMallet){
+        say(n,pick(REP_BOOST));
+        showBanner('STRYKER POWER-UP!');
+        burst(n.x,n.y,14,'#ffb52e',220,.8);
+        sfxWhoosh(); sfxBeep(1320,.09,.06); sfxBeep(1760,.09,.05);
+      }
+    } else if(!gaveMallet) say(n,pick(REP_IDLE));
   }
   else if(n.kind==='admin'){ say(n,pick(ADMIN_HIT));
     if(hit&&Math.random()<.35){ score+=150; updateHUD();
