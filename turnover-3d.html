@@ -167,7 +167,7 @@
     Smash everything. O₂ tanks explode. Kick buckets were made to be kicked.<br>
     The staff will not help you. Watch the MOP RADAR. He is already walking.<br>
     Feeling brave? Swing at the janitor. His mop is worth taking — twice, and he drops a syringe.<br>
-    Bump a device rep for a speed boost. Hell yeah.
+    Reps shadow the surgeons — bump one for the demo mallet, again for a speed boost. Hell yeah.
   </div>
   <button class="go" id="startBtn">SCRUB IN</button>
   <div class="tiny">no patients were present. it's turnover time.</div>
@@ -214,7 +214,7 @@ if(IS_TOUCH){
     'Smash everything. O₂ tanks explode. Kick buckets were made to be kicked.<br>'+
     'The staff will not help you. Watch the MOP RADAR. He is already walking.<br>'+
     'Feeling brave? Swing at the janitor. His mop is worth taking — twice, and he drops a syringe.<br>'+
-    'Bump a device rep for a speed boost. Hell yeah.';
+    'Reps shadow the surgeons — bump one for the demo mallet, again for a speed boost. Hell yeah.';
 }
 const rand=(a,b)=>a+Math.random()*(b-a);
 const pick=a=>a[Math.floor(Math.random()*a.length)];
@@ -529,8 +529,9 @@ const GAS_BUMP=["Careful. Charting.","You bumped my coffee.","Rude. I'm pre-oxyg
 const GAS_SMASH=["Whoa. Chill.","That was load-bearing.","I was leaning on that.","My machine!! ...well, the hospital's."];
 const REP_IDLE=["Got the new drill in the truck.","This plate? Titanium. GORGEOUS.","Can I scrub in? I basically work here.",
   "Lunch is on Stryker, team.","You lifting, bro?","New hip, same day. Unreal.","Demo kit's in my Tahoe.",
-  "I've watched like 400 of these."];
+  "I've watched like 400 of these.","Doctor, have you SEEN the new mallet?","Doc, one sec — new catalog."];
 const REP_BOOST=["Hell yeah bro!","STRYKER STRONG!","Hydrate, king.","Let's GOOO!"];
+const REP_MALLET=["Try the new one. It's TITANIUM.","Demo unit. Keep it quiet.","This one's off the truck.","Latest gen. You've earned it."];
 const SKINS={ 'Deb':{skin:'#e8c9a8',hair:'#6a4a2a'}, 'Randy':{skin:'#8d5a3b',hair:'#171310'},
   'Pam':{skin:'#f0d8c0',hair:'#b8b0a0'}, 'Dr. Blade':{skin:'#c68642',hair:'#14100c'},
   'Dr. Yell':{skin:'#e8c9a8',hair:'#8a8a88'}, 'Brad, MBA':{skin:'#e0b890',hair:'#3a2e22'},
@@ -1153,23 +1154,23 @@ function buildGasMesh(o){
   return g;
 }
 function buildRepMesh(o){
-  // device rep: branded polo, khakis, lanyard, demo case. never more than 20 feet from the OR.
+  // device rep: blue scrubs, red hat, lanyard, demo case. never more than 20 feet from the OR.
   const g=new THREE.Group(); blob(g,16); const U=g.userData;
-  U.legL=mkLimb2(g,0,36,-5.5,18,18,4,'#c2b18a','#c2b18a','#6a4a30',0,true);
-  U.legR=mkLimb2(g,0,36,5.5,18,18,4,'#c2b18a','#c2b18a','#6a4a30',0,true);
-  { const t=new THREE.Mesh(new THREE.CylinderGeometry(10,11.5,29,14), mat('#28497c'));
+  U.legL=mkLimb2(g,0,36,-5.5,18,18,4,'#3a78c2','#3a78c2','#6a4a30',0,true);
+  U.legR=mkLimb2(g,0,36,5.5,18,18,4,'#3a78c2','#3a78c2','#6a4a30',0,true);
+  { const t=new THREE.Mesh(new THREE.CylinderGeometry(10,11.5,29,14), mat('#3a78c2'));
     t.position.y=50.5; t.scale.set(1.18,1,1); g.add(t); U.torso=t; }
   bx(g,3.5,10,1.5,'#f4d648',12.2,58,0,true);            // lanyard badge, gold
   bx(g,1.6,12,3,'#c0392b',12.4,55,-4,true);             // lanyard strap
-  bx(g,7,3,1.5,'#f6fafa',12.2,63,0,true);               // polo logo bar
-  U.armL=mkLimb2(g,0,62,-14,14,13,3.5,'#28497c',o.skin,o.skin,3.8,false);
-  U.armR=mkLimb2(g,0,62,14,14,13,3.5,'#28497c',o.skin,o.skin,3.8,false);
+  bx(g,7,3,1.5,'#f6fafa',12.2,63,0,true);               // scrub-top v-neck trim
+  U.armL=mkLimb2(g,0,62,-14,14,13,3.5,'#3a78c2',o.skin,o.skin,3.8,false);
+  U.armR=mkLimb2(g,0,62,14,14,13,3.5,'#3a78c2',o.skin,o.skin,3.8,false);
   U.armL.up.rotation.x=-.25; U.armL.lo.rotation.z=1.4; U.pinL=true;
   { const kit=new THREE.Group();                        // the demo case
     bx(kit,16,10,6,'#3a3f44',0,0,0); bx(kit,16,2,1,'#f4d648',0,1,3.2,true);
     kit.position.set(0,-14,0); U.armL.lo.add(kit); }
-  mkHead(g,U,79,8.4,o.skin,o.hair,null,null);
-  bx(U.head,1.2,1.2,7,'#16302c',8.6,2.6,0,true);        // wraparound shades
+  mkHead(g,U,79,8.4,o.skin,o.hair,'#c0392b',null);      // the red hat
+  bx(U.head,1.2,1.2,7,'#16302c',8.6,1.4,0,true);        // wraparound shades
   return g;
 }
 function buildJanMesh(){
@@ -1240,6 +1241,20 @@ const mopVM=new THREE.Group();
   mopVM.position.set(11,-11,-13); mopVM.rotation.set(0.5,-0.3,0.12);
   mopVM.visible=false;
   camera.add(mopVM); }
+
+/* the Stryker demo mallet — titanium, off the truck, not technically for sale yet */
+const pmalletVM=new THREE.Group();
+{ const handle=cyl(pmalletVM,1.9,1.9,32,'#3a4048',0,0,-15); handle.rotation.x=Math.PI/2;
+  shiny(bx(pmalletVM,14,10,10,'#c9d4d2',0,0,-32));
+  shiny(bx(pmalletVM,14,3,10,'#e8eef0',0,4.6,-32));
+  bx(pmalletVM,14.4,2,10.4,'#f4d648',0,-1,-32,true);          // the gold band. branding.
+  bx(pmalletVM,6,3,.6,'#f4d648',0,0,-26.6,true);
+  const arm=cyl(pmalletVM,3.2,4.2,20,'#2e8f86',4,-6,-1); arm.rotation.x=1.15; arm.rotation.z=-.35;
+  sph(pmalletVM,4,'#f0d8c0',0,-1,-8);
+  pmalletVM.scale.setScalar(0.55);
+  pmalletVM.position.set(11,-11,-13); pmalletVM.rotation.set(0.6,-0.35,0.15);
+  pmalletVM.visible=false;
+  camera.add(pmalletVM); }
 
 /* the syringe — off-hand, found the second time you drop him */
 const syrVM=new THREE.Group();
@@ -1314,7 +1329,7 @@ let paused=false, freezeT=0, banner100=[false,false,false,false], allDone=false,
 let camYaw=Math.PI, camPitch=0, headBob=0, stepT=0;
 let evT=22, blackoutT=0, timeoutT=0;
 let mopT=0, corpse=null, dragDir=0, camSide=1, dragStainT=0, deathDone=false;
-let knockCount=0, syrMode=false;
+let knockCount=0, syrMode=false, pMalletT=0;
 const fadeEl=document.createElement('div');
 fadeEl.style.cssText='position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .5s;z-index:8';
 document.body.appendChild(fadeEl);
@@ -1356,6 +1371,7 @@ function init(){
   janitor={x:2250,y:1430,r:16,speed:42,bob:0,line:'',lineT:0,downT:0,noKnock:0,rage:0};
   mopT=0; corpse=null; deathDone=false; dragStainT=0;
   knockCount=0; syrMode=false; syrVM.visible=false;
+  pMalletT=0; pmalletVM.visible=false;
   mopVM.visible=false; mallet.visible=true;
   metalStop();
   fadeEl.style.opacity=0;
@@ -1369,6 +1385,7 @@ function init(){
     mkNPC('rep',1150,700,'Chad, Stryker'), mkNPC('rep',1700,1000,'Tanner, Stryker'),
   ];
   npcs[6].ang=-1.0;
+  npcs[7].buddy=npcs[3]; npcs[8].buddy=npcs[4];   // each rep shadows a surgeon
   for(const n of npcs){
     n.mesh=(n.kind==='circ'?buildCircMesh(SKINS[n.name])
       :n.kind==='admin'?buildAdminMesh(SKINS[n.name])
@@ -1606,8 +1623,8 @@ function aimTarget(){
 function trySwing(){
   if(state!=='play'||paused) return;
   if(player.swingCd>0||player.stun>0) return;
-  const hasMop=mopT>0;
-  const rng=hasMop?185:150, arc=hasMop?0.9:0.62, dmg=hasMop?95:38;
+  const hasMop=mopT>0, hasPM=pMalletT>0;
+  const rng=hasMop?185:hasPM?165:150, arc=hasMop?0.9:hasPM?0.72:0.62, dmg=hasMop?95:hasPM?82:38;
   player.swing=.26; player.swingCd=hasMop?.26:.32; sfxWhoosh();
   let hitAny=false;
   for(const p of props){ if(p.dead) continue;
@@ -1615,8 +1632,9 @@ function trySwing(){
     const d=Math.hypot(px,py)-(p.r||Math.min(p.w,p.h)/2);
     if(d<rng){ const a=Math.atan2(py,px); let da=Math.abs(a-player.ang);
       da=Math.min(da,Math.PI*2-da);
-      if(da<arc){ hitProp(p,dmg,player.x,player.y,hasMop?1.4:1); hitAny=true;
-        if(hasMop) burst(p.x,p.y,5,'#7d1424',180,.6); } } }
+      if(da<arc){ hitProp(p,dmg,player.x,player.y,hasMop?1.4:hasPM?1.3:1); hitAny=true;
+        if(hasMop) burst(p.x,p.y,5,'#7d1424',180,.6);
+        else if(hasPM) burst(p.x,p.y,5,'#ffd27a',200,.5); } } }
   for(const n of npcs){ if(dist(n,player)<rng+n.r){ const a=Math.atan2(n.y-player.y,n.x-player.x);
     let da=Math.abs(a-player.ang); da=Math.min(da,Math.PI*2-da);
     if(da<arc) npcBumped(n,true); } }
@@ -1631,14 +1649,14 @@ function trySwing(){
     if(jd<150+janitor.r){ const a=Math.atan2(janitor.y-player.y,janitor.x-player.x);
       let da=Math.abs(a-player.ang); da=Math.min(da,Math.PI*2-da);
       if(da<0.62){ knockJanitor(); hitAny=true; } } }
-  if(hitAny) shake=Math.max(shake,hasMop?5:3.5);
+  if(hitAny) shake=Math.max(shake,hasMop?5:hasPM?4.5:3.5);
   else sfxBeep(220,.04,.03);
 }
 function knockJanitor(){
   const J=janitor;
   J.downT=9; J.noKnock=999;          // reset to a real cooldown when he rises
   mopT=8; knockCount++;
-  mallet.visible=false; mopVM.visible=true;
+  mallet.visible=false; pmalletVM.visible=false; mopVM.visible=true;
   const M=J.mesh.userData; if(M.mop) M.mop.visible=false;
   burst(J.x,J.y,22,'#7d1424',240,.9);
   stain(J.x,J.y,'#7d1424',46);
@@ -1677,7 +1695,16 @@ function npcBumped(n,hit){
   }
   else if(n.kind==='gas'){ say(n,pick(GAS_BUMP)); }
   else if(n.kind==='rep'){
-    if((n.boostCd||0)<=0){
+    if((n.malletCd||0)<=0){
+      // the demo mallet comes off the truck first
+      n.malletCd=24; pMalletT=10;
+      if(mopT<=0){ mallet.visible=false; pmalletVM.visible=true; }
+      say(n,pick(REP_MALLET));
+      showBanner('STRYKER DEMO MALLET!');
+      addPop(player.x,player.y,'POWER MALLET','#ffd27a',18,80);
+      burst(n.x,n.y,14,'#ffd27a',220,.8);
+      sfxClang(); sfxBeep(880,.09,.06); sfxBeep(1174,.09,.05);
+    } else if((n.boostCd||0)<=0){
       n.boostCd=10; player.boostT=5;
       say(n,pick(REP_BOOST));
       showBanner('STRYKER POWER-UP!');
@@ -1780,8 +1807,15 @@ function update(dt){
   if(mopT>0){
     mopT-=dt;
     if(Math.random()<dt*4) spawnPart(P.x+rand(-8,8),30,P.y+rand(-8,8),'#7d1424',30,.7);
-    if(mopT<=0){ mopVM.visible=false; syrVM.visible=false; syrMode=false; mallet.visible=true;
+    if(mopT<=0){ mopVM.visible=false; syrVM.visible=false; syrMode=false;
+      if(pMalletT>0) pmalletVM.visible=true; else mallet.visible=true;
       showBanner('the mop is spent'); sfxThud(); }
+  }
+  // the demo mallet goes back on the truck eventually
+  if(pMalletT>0){
+    pMalletT-=dt;
+    if(pMalletT<=0){ pmalletVM.visible=false;
+      if(mopT<=0){ mallet.visible=true; showBanner('demo period expired'); sfxClang(); } }
   }
   // combo decay
   comboT-=dt; if(comboT<=0&&combo>1){ combo=Math.max(1,combo-dt*2); updateHUD(); }
@@ -1841,11 +1875,15 @@ function updateNPC(n,dt){
   } else if(n.kind==='gas'){
     if(n.say<=0&&n.lineT<=0&&pd<380){ say(n,pick(GAS_IDLE)); n.say=rand(6,11); }
   } else if(n.kind==='rep'){
-    n.boostCd=(n.boostCd||0)-dt;
+    n.boostCd=(n.boostCd||0)-dt; n.malletCd=(n.malletCd||0)-dt;
     if(n.say<=0&&n.lineT<=0&&pd<420){ say(n,pick(REP_IDLE)); n.say=rand(6,10); }
+    // a rep is never far from his surgeon — that's where the purchase orders live
     const d=Math.hypot(n.tx-n.x,n.ty-n.y);
-    if(d<12||n.moveT<=0){ n.moveT=rand(5,9);
-      n.tx=rand(90,W-90); n.ty=rand(90,H-90); }
+    if(d<12||n.moveT<=0){ n.moveT=rand(4,8);
+      if(n.buddy){ const a=rand(0,Math.PI*2), rr2=rand(70,170);
+        n.tx=clamp(n.buddy.x+Math.cos(a)*rr2,60,W-60);
+        n.ty=clamp(n.buddy.y+Math.sin(a)*rr2,60,H-60); }
+      else { n.tx=rand(90,W-90); n.ty=rand(90,H-90); } }
     n.vx=(n.tx-n.x)/(d||1)*88; n.vy=(n.ty-n.y)/(d||1)*88; moveCircle(n,dt);
     n.ang=(pd<320)?Math.atan2(player.y-n.y,player.x-n.x):Math.atan2(n.vy,n.vx);
   } else if(n.kind==='admin'){
@@ -1967,7 +2005,7 @@ function die(){
   flashEl.style.opacity=.5; setTimeout(()=>flashEl.style.opacity=0,120);
   vigEl.style.opacity=.55;
   if(locked) document.exitPointerLock();
-  mallet.visible=false; mopVM.visible=false; syrVM.visible=false;
+  mallet.visible=false; mopVM.visible=false; syrVM.visible=false; pmalletVM.visible=false;
   // hard cut to third person: you, on the floor. him, arriving.
   dragDir=Math.atan2(CLOSET.y-player.y,CLOSET.x-player.x);
   // camera goes on whichever side of the drag line has more room
@@ -2155,7 +2193,7 @@ function syncVisuals(dt){
   // mallet swing pose
   if(player){
     const sw=player.swing>0? Math.sin((0.26-player.swing)/0.26*Math.PI) : 0;
-    const vm=mopT>0?mopVM:mallet;
+    const vm=mopT>0?mopVM:pMalletT>0?pmalletVM:mallet;
     vm.rotation.x=(vm===mopVM?0.5:0.6)-sw*1.9;
     vm.position.z=-13-sw*6;
     vm.position.y=-11+Math.sin(headBob)*0.8;
@@ -2189,7 +2227,7 @@ init(); // world visible behind the title screen
 /* smoke-test hook (?debug=1 only): lets automated checks reach into the closure */
 if(/[?&]debug=1/.test(location.search)){
   window.__turnover={
-    get:()=>({state,score,mopT,knockCount,syrMode,projs:projs.length,boostT:player.boostT,metal:metalOn,
+    get:()=>({state,score,mopT,knockCount,syrMode,projs:projs.length,boostT:player.boostT,metal:metalOn,pMalletT,
       janDown:janitor.downT,jan:{x:janitor.x,y:janitor.y},me:{x:player.x,y:player.y},
       reps:npcs.filter(n=>n.kind==='rep').map(n=>({x:n.x,y:n.y}))}),
     knock:knockJanitor,
