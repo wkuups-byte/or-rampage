@@ -9,7 +9,8 @@ if(IS_TOUCH){
     '<b>left stick</b> move &nbsp;·&nbsp; <b>drag anywhere else</b> look &nbsp;·&nbsp; <b>tap / SMASH</b> swing mallet &nbsp;·&nbsp; <b>DASH</b> dash<br>'+
     'Smash everything. O₂ tanks explode. Kick buckets were made to be kicked.<br>'+
     'The staff will not help you. Watch the MOP RADAR. He is already walking.<br>'+
-    'Feeling brave? Swing at the janitor. His mop is worth taking.';
+    'Feeling brave? Swing at the janitor. His mop is worth taking — twice, and he drops a syringe.<br>'+
+    'Bump a device rep for a speed boost. Hell yeah.';
 }
 const rand=(a,b)=>a+Math.random()*(b-a);
 const pick=a=>a[Math.floor(Math.random()*a.length)];
@@ -85,6 +86,99 @@ function sfxFart(){ if(!AC) return; const t=AC.currentTime, dur=rand(.28,.5);
   const f=AC.createBiquadFilter(); f.type='lowpass'; f.frequency.value=420;
   o.connect(f).connect(g).connect(master);
   o.start(t); o.stop(t+dur+.05); lfo.start(t); lfo.stop(t+dur+.05); }
+function sfxJumpscare(){ if(!AC) return; const t=AC.currentTime;
+  // the blast — instant, loud, wrong
+  const s=AC.createBufferSource(); s.buffer=noiseBuf(.5);
+  const f=AC.createBiquadFilter(); f.type='bandpass'; f.Q.value=.7;
+  f.frequency.setValueAtTime(2600,t); f.frequency.exponentialRampToValueAtTime(400,t+.4);
+  const g=AC.createGain(); g.gain.setValueAtTime(1.1,t);
+  g.gain.exponentialRampToValueAtTime(.0001,t+.45);
+  s.connect(f).connect(g).connect(master); s.start(t);
+  // the shriek: a dissonant cluster diving downward
+  [1244,1318,1661,880].forEach(fr=>{ const o=AC.createOscillator(); o.type='sawtooth';
+    o.frequency.setValueAtTime(fr*rand(.98,1.02),t);
+    o.frequency.exponentialRampToValueAtTime(fr*.32,t+.55);
+    const og=AC.createGain(); og.gain.setValueAtTime(.22,t);
+    og.gain.exponentialRampToValueAtTime(.0001,t+.6);
+    o.connect(og).connect(master); o.start(t); o.stop(t+.7); });
+  // and the floor drops out
+  const o=AC.createOscillator(); o.type='sine';
+  o.frequency.setValueAtTime(90,t); o.frequency.exponentialRampToValueAtTime(30,t+.7);
+  const og2=AC.createGain(); og2.gain.setValueAtTime(.9,t);
+  og2.gain.exponentialRampToValueAtTime(.0001,t+.8);
+  o.connect(og2).connect(master); o.start(t); o.stop(t+.9);
+}
+
+/* ---- procedural metal: plays while the Stryker power-up is active ---- */
+let metalOn=false, metalGain=null, metalShaper=null, metalTimer=null, metalNext=0, metalBar=0;
+function distCurve(k){ const n=1024, c=new Float32Array(n);
+  for(let i=0;i<n;i++){ const x=i*2/n-1; c[i]=(Math.PI+k)*x/(Math.PI+k*Math.abs(x)); } return c; }
+function metalChug(t,freq,dur,accent){
+  for(const det of [0,-7]){ const o=AC.createOscillator(); o.type='sawtooth';
+    o.frequency.value=freq; o.detune.value=det;
+    const g=AC.createGain(); g.gain.setValueAtTime(accent?.5:.34,t);
+    g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    o.connect(g).connect(metalShaper); o.start(t); o.stop(t+dur+.02); }
+  if(accent){ const o5=AC.createOscillator(); o5.type='sawtooth';
+    o5.frequency.value=freq*1.5;                       // the fifth — a power chord, obviously
+    const g5=AC.createGain(); g5.gain.setValueAtTime(.3,t);
+    g5.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    o5.connect(g5).connect(metalShaper); o5.start(t); o5.stop(t+dur+.02); }
+}
+function metalKick(t){ const o=AC.createOscillator(); o.type='sine';
+  o.frequency.setValueAtTime(130,t); o.frequency.exponentialRampToValueAtTime(42,t+.09);
+  const g=AC.createGain(); g.gain.setValueAtTime(.9,t);
+  g.gain.exponentialRampToValueAtTime(.0001,t+.14);
+  o.connect(g).connect(metalGain); o.start(t); o.stop(t+.16); }
+function metalSnare(t){ const s=AC.createBufferSource(); s.buffer=noiseBuf(.12);
+  const f=AC.createBiquadFilter(); f.type='bandpass'; f.frequency.value=1900; f.Q.value=.9;
+  const g=AC.createGain(); g.gain.setValueAtTime(.5,t);
+  g.gain.exponentialRampToValueAtTime(.0001,t+.11);
+  s.connect(f).connect(g).connect(metalGain); s.start(t); }
+function metalHat(t){ const s=AC.createBufferSource(); s.buffer=noiseBuf(.04);
+  const f=AC.createBiquadFilter(); f.type='highpass'; f.frequency.value=7000;
+  const g=AC.createGain(); g.gain.setValueAtTime(.12,t);
+  g.gain.exponentialRampToValueAtTime(.0001,t+.035);
+  s.connect(f).connect(g).connect(metalGain); s.start(t); }
+function metalScheduleBar(t){
+  const SX=60/180/4;                                   // 16ths at 180 bpm
+  const roots=[82.41,82.41,98,110], root=roots[metalBar%4];
+  const gallop=[1,0,1,1, 1,0,1,1, 1,0,1,1, 0,1,1,0];
+  for(let i=0;i<16;i++){
+    const st=t+i*SX;
+    if(gallop[i]) metalChug(st,root,i%4===0?SX*2.6:SX*1.1,i===0);
+    if(i%4===0) metalKick(st);
+    if(i===6||i===14) metalKick(st);
+    if(i===4||i===12) metalSnare(st);
+    if(i%2===0) metalHat(st);
+  }
+  metalBar++;
+  return t+16*SX;
+}
+function metalStart(){
+  if(!AC||metalOn) return;
+  metalOn=true; metalBar=0;
+  metalGain=AC.createGain();
+  metalGain.gain.setValueAtTime(.001,AC.currentTime);
+  metalGain.gain.exponentialRampToValueAtTime(.55,AC.currentTime+.12);
+  metalGain.connect(master);
+  metalShaper=AC.createWaveShaper(); metalShaper.curve=distCurve(60);
+  metalShaper.oversample='2x';
+  const preGain=AC.createGain(); preGain.gain.value=.5;
+  metalShaper.connect(preGain).connect(metalGain);
+  metalNext=AC.currentTime+.06;
+  const pump=()=>{ while(metalNext<AC.currentTime+.7) metalNext=metalScheduleBar(metalNext); };
+  pump(); metalTimer=setInterval(pump,250);
+}
+function metalStop(){
+  if(!metalOn) return;
+  metalOn=false; clearInterval(metalTimer);
+  const g=metalGain; metalGain=null; metalShaper=null;
+  if(g){ g.gain.cancelScheduledValues(AC.currentTime);
+    g.gain.setValueAtTime(Math.max(g.gain.value,.001),AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+.3);
+    setTimeout(()=>{ try{ g.disconnect(); }catch(err){} },450); }
+}
 function sfxSting(){ if(!AC) return; const t=AC.currentTime;
   [110,116,220,233].forEach(fr=>{ const o=AC.createOscillator(); o.type='sawtooth'; o.frequency.value=fr;
     const g=AC.createGain(); g.gain.setValueAtTime(.12,t); g.gain.linearRampToValueAtTime(0,t+1.6);
@@ -229,10 +323,15 @@ const GAS_IDLE=["Vitals are... vital.","I'll chart it later.","She's fine. Proba
   "Pressure's soft. Eh.","MAC stands for Mostly Awake, Chill."];
 const GAS_BUMP=["Careful. Charting.","You bumped my coffee.","Rude. I'm pre-oxygenating."];
 const GAS_SMASH=["Whoa. Chill.","That was load-bearing.","I was leaning on that.","My machine!! ...well, the hospital's."];
+const REP_IDLE=["Got the new drill in the truck.","This plate? Titanium. GORGEOUS.","Can I scrub in? I basically work here.",
+  "Lunch is on Stryker, team.","You lifting, bro?","New hip, same day. Unreal.","Demo kit's in my Tahoe.",
+  "I've watched like 400 of these."];
+const REP_BOOST=["Hell yeah bro!","STRYKER STRONG!","Hydrate, king.","Let's GOOO!"];
 const SKINS={ 'Deb':{skin:'#e8c9a8',hair:'#6a4a2a'}, 'Randy':{skin:'#8d5a3b',hair:'#171310'},
   'Pam':{skin:'#f0d8c0',hair:'#b8b0a0'}, 'Dr. Blade':{skin:'#c68642',hair:'#14100c'},
   'Dr. Yell':{skin:'#e8c9a8',hair:'#8a8a88'}, 'Brad, MBA':{skin:'#e0b890',hair:'#3a2e22'},
-  'Gary, CRNA':{skin:'#dcb28c',hair:'#2c2620'} };
+  'Gary, CRNA':{skin:'#dcb28c',hair:'#2c2620'},
+  'Chad, Stryker':{skin:'#e0b890',hair:'#4a3520'}, 'Tanner, Stryker':{skin:'#d8a878',hair:'#2c2014'} };
 
 /* ============================== three.js scene ============================== */
 const scene=new THREE.Scene();
@@ -849,6 +948,26 @@ function buildGasMesh(o){
   bx(U.head,1,.8,4,'#8a5a4a',8.4,-3.9,0,true);
   return g;
 }
+function buildRepMesh(o){
+  // device rep: branded polo, khakis, lanyard, demo case. never more than 20 feet from the OR.
+  const g=new THREE.Group(); blob(g,16); const U=g.userData;
+  U.legL=mkLimb2(g,0,36,-5.5,18,18,4,'#c2b18a','#c2b18a','#6a4a30',0,true);
+  U.legR=mkLimb2(g,0,36,5.5,18,18,4,'#c2b18a','#c2b18a','#6a4a30',0,true);
+  { const t=new THREE.Mesh(new THREE.CylinderGeometry(10,11.5,29,14), mat('#28497c'));
+    t.position.y=50.5; t.scale.set(1.18,1,1); g.add(t); U.torso=t; }
+  bx(g,3.5,10,1.5,'#f4d648',12.2,58,0,true);            // lanyard badge, gold
+  bx(g,1.6,12,3,'#c0392b',12.4,55,-4,true);             // lanyard strap
+  bx(g,7,3,1.5,'#f6fafa',12.2,63,0,true);               // polo logo bar
+  U.armL=mkLimb2(g,0,62,-14,14,13,3.5,'#28497c',o.skin,o.skin,3.8,false);
+  U.armR=mkLimb2(g,0,62,14,14,13,3.5,'#28497c',o.skin,o.skin,3.8,false);
+  U.armL.up.rotation.x=-.25; U.armL.lo.rotation.z=1.4; U.pinL=true;
+  { const kit=new THREE.Group();                        // the demo case
+    bx(kit,16,10,6,'#3a3f44',0,0,0); bx(kit,16,2,1,'#f4d648',0,1,3.2,true);
+    kit.position.set(0,-14,0); U.armL.lo.add(kit); }
+  mkHead(g,U,79,8.4,o.skin,o.hair,null,null);
+  bx(U.head,1.2,1.2,7,'#16302c',8.6,2.6,0,true);        // wraparound shades
+  return g;
+}
 function buildJanMesh(){
   // short, wide and wrong: stubby legs, a gut, and a too-big pale head
   const g=new THREE.Group(); blob(g,19); const U=g.userData;
@@ -918,6 +1037,19 @@ const mopVM=new THREE.Group();
   mopVM.visible=false;
   camera.add(mopVM); }
 
+/* the syringe — off-hand, found the second time you drop him */
+const syrVM=new THREE.Group();
+{ const body=cyl(syrVM,1.5,1.5,9,'#e8f4f2',0,0,-14); body.rotation.x=Math.PI/2;
+  const fluid=cyl(syrVM,1.2,1.2,6,'#7ee8c8',0,0,-13.5,true); fluid.rotation.x=Math.PI/2;
+  const plunger=cyl(syrVM,.7,.7,6,'#7ecbff',0,0,-8); plunger.rotation.x=Math.PI/2;
+  bx(syrVM,3.6,3.6,.8,'#d8e4e2',0,0,-9.5);
+  bx(syrVM,2.6,2.6,.8,'#7ecbff',0,0,-5);
+  const needle=cyl(syrVM,.22,.22,7,'#c9d4d2',0,0,-22); needle.rotation.x=Math.PI/2;
+  sph(syrVM,3.4,'#f0d8c0',0,-1.5,-9);
+  syrVM.position.set(-9,-9.5,-11); syrVM.rotation.set(0.35,0.25,-0.1);
+  syrVM.visible=false;
+  camera.add(syrVM); }
+
 /* ============================== DOM label helpers ============================== */
 const labelsEl=document.getElementById('labels');
 const tmpV=new THREE.Vector3(), tmpV2=new THREE.Vector3();
@@ -978,6 +1110,7 @@ let paused=false, freezeT=0, banner100=[false,false,false,false], allDone=false,
 let camYaw=Math.PI, camPitch=0, headBob=0, stepT=0;
 let evT=22, blackoutT=0, timeoutT=0;
 let mopT=0, corpse=null, dragDir=0, camSide=1, dragStainT=0, deathDone=false;
+let knockCount=0, syrMode=false;
 const fadeEl=document.createElement('div');
 fadeEl.style.cssText='position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .5s;z-index:8';
 document.body.appendChild(fadeEl);
@@ -1015,10 +1148,12 @@ function init(){
       phys:!!d.phys,boom:!!d.boom,slide:d.slide||.97,vx:0,vy:0,dead:false,wob:0,seed:Math.random()*7};
     o.mesh=buildPropMesh(o); dyn.add(o.mesh); return o; });
   total=props.length; broken=0; projs=[];
-  player={x:300,y:560,r:15,vx:0,vy:0,ang:0,swing:0,swingCd:0,dashT:0,dashCd:0,stun:0,inv:0};
+  player={x:300,y:560,r:15,vx:0,vy:0,ang:0,swing:0,swingCd:0,dashT:0,dashCd:0,stun:0,inv:0,boostT:0};
   janitor={x:2250,y:1430,r:16,speed:42,bob:0,line:'',lineT:0,downT:0,noKnock:0,rage:0};
   mopT=0; corpse=null; deathDone=false; dragStainT=0;
+  knockCount=0; syrMode=false; syrVM.visible=false;
   mopVM.visible=false; mallet.visible=true;
+  metalStop();
   fadeEl.style.opacity=0;
   if(closetDoor) closetDoor.rotation.y=0;
   janitor.mesh=buildJanMesh(); dyn.add(janitor.mesh);
@@ -1027,12 +1162,14 @@ function init(){
     mkNPC('surg',600,300,'Dr. Blade'), mkNPC('surg',1940,420,'Dr. Yell'),
     mkNPC('admin',1100,900,'Brad, MBA'),
     mkNPC('gas',430,335,'Gary, CRNA'),
+    mkNPC('rep',1150,700,'Chad, Stryker'), mkNPC('rep',1700,1000,'Tanner, Stryker'),
   ];
   npcs[6].ang=-1.0;
   for(const n of npcs){
     n.mesh=(n.kind==='circ'?buildCircMesh(SKINS[n.name])
       :n.kind==='admin'?buildAdminMesh(SKINS[n.name])
       :n.kind==='gas'?buildGasMesh(SKINS[n.name])
+      :n.kind==='rep'?buildRepMesh(SKINS[n.name])
       :buildSurgMesh(SKINS[n.name]));
     shadowify(n.mesh); dyn.add(n.mesh); }
   shadowify(janitor.mesh);
@@ -1205,6 +1342,7 @@ document.addEventListener('pointerlockerror',()=>{ locked=false; });
 function tryLock(){ if(IS_TOUCH) return; try{ cv.requestPointerLock(); }catch(err){} }
 function setPaused(v){ paused=v;
   document.getElementById('pausedOv').style.display=v?'flex':'none';
+  if(v) metalStop();   // update() restarts it on unpause if the boost is still live
   if(v&&locked) document.exitPointerLock();
 }
 document.getElementById('pausedOv').addEventListener('click',()=>{ setPaused(false); tryLock(); });
@@ -1278,6 +1416,11 @@ function trySwing(){
   for(const n of npcs){ if(dist(n,player)<rng+n.r){ const a=Math.atan2(n.y-player.y,n.x-player.x);
     let da=Math.abs(a-player.ang); da=Math.min(da,Math.PI*2-da);
     if(da<arc) npcBumped(n,true); } }
+  // the syringe flies with every swing once you have it
+  if(hasMop && syrMode){
+    projs.push(mkSyringe(player.x,player.y,player.ang));
+    sfxBeep(1500,.05,.04);
+  }
   // the janitor can be knocked down — once he's close enough to be brave about it
   if(!hasMop && janitor.downT<=0 && janitor.noKnock<=0){
     const jd=dist(janitor,player);
@@ -1290,15 +1433,31 @@ function trySwing(){
 function knockJanitor(){
   const J=janitor;
   J.downT=9; J.noKnock=999;          // reset to a real cooldown when he rises
-  mopT=8;
+  mopT=8; knockCount++;
   mallet.visible=false; mopVM.visible=true;
   const M=J.mesh.userData; if(M.mop) M.mop.visible=false;
   burst(J.x,J.y,22,'#7d1424',240,.9);
   stain(J.x,J.y,'#7d1424',46);
-  say(J,'...my mop.');
   sfxThud(); sfxCrash(.8);
-  showBanner('YOU TOOK HIS MOP. GO.');
+  if(knockCount>=2){
+    // second time down, he drops more than the mop
+    syrMode=true; syrVM.visible=true;
+    say(J,'...not the syringe.');
+    showBanner('MOP + SYRINGE. FULL CODE.');
+    burst(J.x,J.y,10,'#7ee8c8',200,.8);
+  } else {
+    say(J,'...my mop.');
+    showBanner('YOU TOOK HIS MOP. GO.');
+  }
   addPop(J.x,J.y,'JANITOR DOWN','#ff5566',22,92);
+}
+function mkSyringe(x,y,ang){
+  const s={x,y,vx:Math.cos(ang)*520,vy:Math.sin(ang)*520,t:0,life:1.4,mine:true};
+  const g=new THREE.Group();
+  bx(g,12,2.6,2.6,'#e8f4f2',0,0,0); bx(g,7,2,2,'#7ee8c8',-1,0,0,true);
+  bx(g,7,.7,.7,'#c9d4d2',9,0,0); bx(g,1,4,4,'#d8e4e2',-6,0,0);
+  g.position.set(x,56,y); g.rotation.y=-ang; s.mesh=g; dyn.add(g);
+  return s;
 }
 function fart(n){
   sfxFart();
@@ -1313,6 +1472,16 @@ function npcBumped(n,hit){
     else say(n,pick(CIRC_BUMP));
   }
   else if(n.kind==='gas'){ say(n,pick(GAS_BUMP)); }
+  else if(n.kind==='rep'){
+    if((n.boostCd||0)<=0){
+      n.boostCd=10; player.boostT=5;
+      say(n,pick(REP_BOOST));
+      showBanner('STRYKER POWER-UP!');
+      addPop(player.x,player.y,'SPEED BOOST','#8affc1',16,80);
+      burst(n.x,n.y,14,'#ffb52e',220,.8);
+      sfxWhoosh(); sfxBeep(1320,.09,.06); sfxBeep(1760,.09,.05);
+    } else say(n,pick(REP_IDLE));
+  }
   else if(n.kind==='admin'){ say(n,pick(ADMIN_HIT));
     if(hit&&Math.random()<.35){ score+=150; updateHUD();
       addPop(n.x,n.y,'+$150 (petty cash)','#8affc1',15,70); } }
@@ -1344,13 +1513,17 @@ function update(dt){
   if((keys.ShiftLeft||keys.ShiftRight||wantDash)&&P.dashCd<=0&&moving){ P.dashT=.18; P.dashCd=1.1; P.inv=Math.max(P.inv,.3); sfxBeep(440,.05,.04); }
   wantDash=false;
   if(swingHeld) trySwing();
-  const spd=(P.stun>0?90:dashing?640:245);
+  P.boostT=Math.max(0,P.boostT-dt);
+  if(P.boostT>0&&!metalOn) metalStart(); else if(P.boostT<=0&&metalOn) metalStop();
+  const spd=(P.stun>0?90:dashing?640:245+(P.boostT>0?95:0));
   P.vx=mx*spd*(moving?1:0); P.vy=mz*spd*(moving?1:0);
+  if(P.boostT>0&&moving&&Math.random()<dt*10)
+    spawnPart(P.x+rand(-10,10),20,P.y+rand(-10,10),'#8affc1',60,.4,120);
   P.spd=()=>Math.hypot(P.vx,P.vy);
   moveCircle(P,dt);
   stepT-=dt;
   if(moving&&stepT<=0){ stepT=dashing?.16:.34; sfxStep(); }
-  const tgtFov=baseFov()+(dashing?8:0);
+  const tgtFov=baseFov()+(dashing?8:0)+(player.boostT>0?4:0);
   if(Math.abs(camera.fov-tgtFov)>.1){ camera.fov+=(tgtFov-camera.fov)*Math.min(1,dt*10); camera.updateProjectionMatrix(); }
   P.swing=Math.max(0,P.swing-dt); P.swingCd-=dt; P.dashT-=dt; P.dashCd-=dt; P.stun-=dt; P.inv-=dt;
   if(moving&&!dashing) headBob+=dt*(P.spd()>300?14:9); else headBob*=.9;
@@ -1378,11 +1551,20 @@ function update(dt){
   // projectiles: scalpels + pizzas
   for(let i=projs.length-1;i>=0;i--){ const s=projs[i]; s.t+=dt; s.x+=s.vx*dt; s.y+=s.vy*dt;
     s.mesh.position.set(s.x, s.pizza?58-(s.t/s.life)*26:56, s.y);
-    s.mesh.rotation.y-=dt*(s.pizza?9:14);
+    if(!s.mine) s.mesh.rotation.y-=dt*(s.pizza?9:14);
     let dead=s.t>s.life;
     for(const r of walls){ if(s.x>r.x&&s.x<r.x+r.w&&s.y>r.y&&s.y<r.y+r.h){ dead=true;
       if(s.pizza){ stain(s.x,s.y,'#b0452a',26); sfxSplash(); } else sfxClang(); break; } }
-    if(!dead&&dist(s,P)<P.r+(s.pizza?10:6)&&P.inv<=0){
+    if(!dead&&s.mine){
+      // your syringe: sedates equipment and staff alike
+      for(const p of props){ if(p.dead) continue;
+        if(dist(s,p)<(p.r||Math.min(p.w,p.h)/2)+8){
+          hitProp(p,60,s.x-s.vx*.01,s.y-s.vy*.01,.8);
+          burst(s.x,s.y,8,'#7ee8c8',180,.6); sfxZap(); dead=true; break; } }
+      if(!dead) for(const n of npcs){ if(dist(s,n)<n.r+8){
+        npcBumped(n,true); burst(s.x,s.y,8,'#7ee8c8',180,.6); dead=true; break; } }
+    }
+    if(!dead&&!s.mine&&dist(s,P)<P.r+(s.pizza?10:6)&&P.inv<=0){
       if(s.pizza){ P.stun=.55; P.inv=.8; combo=Math.max(1,combo-2); comboT=0; updateHUD();
         stain(P.x,P.y,'#b0452a',30); sfxSplash();
         addPop(P.x,P.y,"PIZZA'D! mandatory fun",'#ffb52e',15,80); }
@@ -1394,7 +1576,7 @@ function update(dt){
   if(mopT>0){
     mopT-=dt;
     if(Math.random()<dt*4) spawnPart(P.x+rand(-8,8),30,P.y+rand(-8,8),'#7d1424',30,.7);
-    if(mopT<=0){ mopVM.visible=false; mallet.visible=true;
+    if(mopT<=0){ mopVM.visible=false; syrVM.visible=false; syrMode=false; mallet.visible=true;
       showBanner('the mop is spent'); sfxThud(); }
   }
   // combo decay
@@ -1454,6 +1636,14 @@ function updateNPC(n,dt){
     else { n.vx=0; n.vy=0; if(pd<260) n.ang=Math.atan2(player.y-n.y,player.x-n.x); }
   } else if(n.kind==='gas'){
     if(n.say<=0&&n.lineT<=0&&pd<380){ say(n,pick(GAS_IDLE)); n.say=rand(6,11); }
+  } else if(n.kind==='rep'){
+    n.boostCd=(n.boostCd||0)-dt;
+    if(n.say<=0&&n.lineT<=0&&pd<420){ say(n,pick(REP_IDLE)); n.say=rand(6,10); }
+    const d=Math.hypot(n.tx-n.x,n.ty-n.y);
+    if(d<12||n.moveT<=0){ n.moveT=rand(5,9);
+      n.tx=rand(90,W-90); n.ty=rand(90,H-90); }
+    n.vx=(n.tx-n.x)/(d||1)*88; n.vy=(n.ty-n.y)/(d||1)*88; moveCircle(n,dt);
+    n.ang=(pd<320)?Math.atan2(player.y-n.y,player.x-n.x):Math.atan2(n.vy,n.vx);
   } else if(n.kind==='admin'){
     if(n.say<=0&&n.lineT<=0){ say(n,pick(ADMIN_IDLE)); n.say=rand(6,10); }
     const d=Math.hypot(n.tx-n.x,n.ty-n.y);
@@ -1489,7 +1679,8 @@ function updateNPC(n,dt){
   const rr=n.r+player.r, d2=dist(n,player);
   if(d2<rr){ const nx=(player.x-n.x)/(d2||1), ny=(player.y-n.y)/(d2||1);
     player.x+=nx*(rr-d2); player.y+=ny*(rr-d2);
-    if(n.bump<=0&&Math.random()<.7) npcBumped(n,false); }
+    // reps always react to contact — the boost is the whole point of bumping one
+    if(n.bump<=0&&(n.kind==='rep'||Math.random()<.7)) npcBumped(n,false); }
   // mesh sync
   n.mesh.position.set(n.x,0,n.y);
   n.mesh.rotation.y=-n.ang;
@@ -1566,10 +1757,13 @@ function updateJanitor(dt){
 }
 
 function die(){
-  state='dying'; deathT=0; deathDone=false; sfxSting();
+  metalStop();
+  state='dying'; deathT=0; deathDone=false;
+  sfxJumpscare(); sfxSting();
+  flashEl.style.opacity=.5; setTimeout(()=>flashEl.style.opacity=0,120);
   vigEl.style.opacity=.55;
   if(locked) document.exitPointerLock();
-  mallet.visible=false; mopVM.visible=false;
+  mallet.visible=false; mopVM.visible=false; syrVM.visible=false;
   // hard cut to third person: you, on the floor. him, arriving.
   dragDir=Math.atan2(CLOSET.y-player.y,CLOSET.x-player.x);
   // camera goes on whichever side of the drag line has more room
@@ -1761,6 +1955,7 @@ function syncVisuals(dt){
     vm.rotation.x=(vm===mopVM?0.5:0.6)-sw*1.9;
     vm.position.z=-13-sw*6;
     vm.position.y=-11+Math.sin(headBob)*0.8;
+    if(syrVM.visible){ syrVM.position.z=-11-sw*4; syrVM.position.y=-9.5+Math.sin(headBob+.6)*0.7; }
   }
 }
 
@@ -1790,7 +1985,9 @@ init(); // world visible behind the title screen
 /* smoke-test hook (?debug=1 only): lets automated checks reach into the closure */
 if(/[?&]debug=1/.test(location.search)){
   window.__turnover={
-    get:()=>({state,score,mopT,janDown:janitor.downT,jan:{x:janitor.x,y:janitor.y},me:{x:player.x,y:player.y}}),
+    get:()=>({state,score,mopT,knockCount,syrMode,projs:projs.length,boostT:player.boostT,metal:metalOn,
+      janDown:janitor.downT,jan:{x:janitor.x,y:janitor.y},me:{x:player.x,y:player.y},
+      reps:npcs.filter(n=>n.kind==='rep').map(n=>({x:n.x,y:n.y}))}),
     knock:knockJanitor,
     die,
     tp:(x,y,yaw,pitch)=>{ player.x=x; player.y=y;
