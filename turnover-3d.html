@@ -167,7 +167,7 @@
     Smash everything. O₂ tanks explode. Kick buckets were made to be kicked.<br>
     The staff will not help you. Watch the MOP RADAR. He is already walking.<br>
     Feeling brave? Swing at the janitor. His mop is worth taking — twice, and he drops a syringe.<br>
-    Reps shadow the surgeons — bump one for a speed boost, and the demo mallet comes free. Hell yeah.
+    Reps shadow the surgeons and keep them calm — bump one for a speed boost, and the demo mallet comes free.
   </div>
   <button class="go" id="startBtn">SCRUB IN</button>
   <div class="tiny">no patients were present. it's turnover time.</div>
@@ -214,7 +214,7 @@ if(IS_TOUCH){
     'Smash everything. O₂ tanks explode. Kick buckets were made to be kicked.<br>'+
     'The staff will not help you. Watch the MOP RADAR. He is already walking.<br>'+
     'Feeling brave? Swing at the janitor. His mop is worth taking — twice, and he drops a syringe.<br>'+
-    'Reps shadow the surgeons — bump one for a speed boost, and the demo mallet comes free. Hell yeah.';
+    'Reps shadow the surgeons and keep them calm — bump one for a speed boost, and the demo mallet comes free.';
 }
 const rand=(a,b)=>a+Math.random()*(b-a);
 const pick=a=>a[Math.floor(Math.random()*a.length)];
@@ -532,6 +532,8 @@ const REP_IDLE=["Got the new drill in the truck.","This plate? Titanium. GORGEOU
   "I've watched like 400 of these.","Doctor, have you SEEN the new mallet?","Doc, one sec — new catalog."];
 const REP_BOOST=["Hell yeah bro!","STRYKER STRONG!","Hydrate, king.","Let's GOOO!"];
 const REP_MALLET=["Try the new one. It's TITANIUM.","Demo unit. Keep it quiet.","This one's off the truck.","Latest gen. You've earned it."];
+const REP_CALM=["Doctor. Breathe. Think of the demo.","Easy, doc — lunch is on Stryker.","Doctor, the catalog. Focus on the catalog.","We're fine. New hips Friday, remember?"];
+const REP_CALM_R=200;
 const SKINS={ 'Deb':{skin:'#e8c9a8',hair:'#6a4a2a'}, 'Randy':{skin:'#8d5a3b',hair:'#171310'},
   'Pam':{skin:'#f0d8c0',hair:'#b8b0a0'}, 'Dr. Blade':{skin:'#c68642',hair:'#14100c'},
   'Dr. Yell':{skin:'#e8c9a8',hair:'#8a8a88'}, 'Brad, MBA':{skin:'#e0b890',hair:'#3a2e22'},
@@ -587,7 +589,8 @@ loadTex('steel','textures/steel.jpg',im=>{ steelCanvas.width=steelCanvas.height=
   steelCanvas.getContext('2d').drawImage(im,0,0,256,256); steelTex.needsUpdate=true; });
 addEventListener('resize',()=>{ VW=innerWidth; VH=innerHeight;
   camera.aspect=VW/VH; camera.fov=baseFov();
-  camera.updateProjectionMatrix(); renderer.setSize(VW,VH,false); });
+  camera.updateProjectionMatrix(); renderer.setSize(VW,VH,false);
+  layoutVMs(); });
 
 const matCache={}, bmatCache={}, smatCache={};
 function mat(c){ return matCache[c]||(matCache[c]=new THREE.MeshStandardMaterial({color:c,roughness:.82,metalness:.02})); }
@@ -1269,6 +1272,20 @@ const syrVM=new THREE.Group();
   syrVM.visible=false;
   camera.add(syrVM); }
 
+/* portrait phones have a narrow horizontal FOV — pull the viewmodels toward center
+   and up so they stay on screen (x=11,y=-11 at z=-13 sits past the edge / behind the
+   SMASH button below ~0.8 aspect) */
+let vmY=-11, syrY=-9.5;
+function layoutVMs(){
+  const portrait=VW/VH<0.8;
+  const hHalf=Math.atan(Math.tan(baseFov()*Math.PI/360)*(VW/VH));
+  const x=Math.min(11,Math.tan(hHalf)*13*.62);
+  mallet.position.x=mopVM.position.x=pmalletVM.position.x=x;
+  syrVM.position.x=Math.max(-9,-Math.tan(hHalf)*11*.55);
+  vmY=portrait?-5:-11; syrY=portrait?-4.5:-9.5;
+}
+layoutVMs();
+
 /* ============================== DOM label helpers ============================== */
 const labelsEl=document.getElementById('labels');
 const tmpV=new THREE.Vector3(), tmpV2=new THREE.Vector3();
@@ -1382,10 +1399,11 @@ function init(){
     mkNPC('surg',600,300,'Dr. Blade'), mkNPC('surg',1940,420,'Dr. Yell'),
     mkNPC('admin',1100,900,'Brad, MBA'),
     mkNPC('gas',430,335,'Gary, CRNA'),
-    mkNPC('rep',1150,700,'Chad, Stryker'), mkNPC('rep',1700,1000,'Tanner, Stryker'),
+    mkNPC('rep',700,360,'Chad, Stryker'), mkNPC('rep',1840,470,'Tanner, Stryker'),
   ];
   npcs[6].ang=-1.0;
   npcs[7].buddy=npcs[3]; npcs[8].buddy=npcs[4];   // each rep shadows a surgeon
+  npcs[3].rep=npcs[7]; npcs[4].rep=npcs[8];       // and the surgeon knows his rep is watching
   for(const n of npcs){
     n.mesh=(n.kind==='circ'?buildCircMesh(SKINS[n.name])
       :n.kind==='admin'?buildAdminMesh(SKINS[n.name])
@@ -1500,6 +1518,7 @@ function triggerEvent(){
       for(let i=-2;i<=2;i++) projs.push(mkPizza(b.x,b.y,base+i*.22)); sfxThud(); } }
   else if(ev==='tantrum'){ showBanner('SURGEON TANTRUM');
     for(const n of npcs){ if(n.kind!=='surg') continue;
+      if(n.rep&&dist(n.rep,n)<REP_CALM_R){ say(n.rep,pick(REP_CALM)); continue; }
       say(n,pick(["WRONG. IMPLANT.","I ASKED FOR JAZZ!!","WHO SCHEDULED THIS?!"]));
       for(let i=0;i<6;i++) projs.push(mkScalpel(n.x,n.y,i/6*Math.PI*2,320)); }
     sfxZap(); sfxCrash(); }
@@ -1882,12 +1901,15 @@ function updateNPC(n,dt){
     if(n.say<=0&&n.lineT<=0&&pd<420){ say(n,pick(REP_IDLE)); n.say=rand(6,10); }
     // a rep is never far from his surgeon — that's where the purchase orders live
     const d=Math.hypot(n.tx-n.x,n.ty-n.y);
-    if(d<12||n.moveT<=0){ n.moveT=rand(4,8);
-      if(n.buddy){ const a=rand(0,Math.PI*2), rr2=rand(70,170);
+    if(d<12||n.moveT<=0){ n.moveT=rand(1.5,3.5);
+      if(n.buddy){ const a=rand(0,Math.PI*2), rr2=rand(40,100);
         n.tx=clamp(n.buddy.x+Math.cos(a)*rr2,60,W-60);
         n.ty=clamp(n.buddy.y+Math.sin(a)*rr2,60,H-60); }
       else { n.tx=rand(90,W-90); n.ty=rand(90,H-90); } }
-    n.vx=(n.tx-n.x)/(d||1)*88; n.vy=(n.ty-n.y)/(d||1)*88; moveCircle(n,dt);
+    const bd=n.buddy?dist(n,n.buddy):0;
+    if(bd>150){ n.tx=n.buddy.x; n.ty=n.buddy.y; }   // orbit points go stale when he sprints — chase him
+    const sp3=bd>150?150:88;
+    n.vx=(n.tx-n.x)/(d||1)*sp3; n.vy=(n.ty-n.y)/(d||1)*sp3; moveCircle(n,dt);
     n.ang=(pd<320)?Math.atan2(player.y-n.y,player.x-n.x):Math.atan2(n.vy,n.vx);
   } else if(n.kind==='admin'){
     if(n.say<=0&&n.lineT<=0){ say(n,pick(ADMIN_IDLE)); n.say=rand(6,10); }
@@ -1917,9 +1939,12 @@ function updateNPC(n,dt){
     n.vx=(n.tx-n.x)/(d||1)*150; n.vy=(n.ty-n.y)/(d||1)*150; moveCircle(n,dt);
     n.ang=Math.atan2(n.vy,n.vx);
     n.throwT-=dt;
-    if(n.throwT<=0&&pd<560){ n.throwT=rand(3.5,6.5);
-      const a=Math.atan2(player.y-n.y,player.x-n.x)+rand(-.1,.1);
-      projs.push(mkScalpel(n.x,n.y,a,400)); say(n,pick(["TAKE THIS!","INSTRUMENT!","CATCH!!"])); sfxZap(); }
+    if(n.throwT<=0&&pd<560){
+      if(n.rep&&dist(n.rep,n)<REP_CALM_R){ n.throwT=rand(2.5,4.5);
+        if(Math.random()<.6) say(n.rep,pick(REP_CALM)); }
+      else { n.throwT=rand(3.5,6.5);
+        const a=Math.atan2(player.y-n.y,player.x-n.x)+rand(-.1,.1);
+        projs.push(mkScalpel(n.x,n.y,a,400)); say(n,pick(["TAKE THIS!","INSTRUMENT!","CATCH!!"])); sfxZap(); } }
   }
   const rr=n.r+player.r, d2=dist(n,player);
   if(d2<rr){ const nx=(player.x-n.x)/(d2||1), ny=(player.y-n.y)/(d2||1);
@@ -2199,8 +2224,8 @@ function syncVisuals(dt){
     const vm=mopT>0?mopVM:pMalletT>0?pmalletVM:mallet;
     vm.rotation.x=(vm===mopVM?0.5:0.6)-sw*1.9;
     vm.position.z=-13-sw*6;
-    vm.position.y=-11+Math.sin(headBob)*0.8;
-    if(syrVM.visible){ syrVM.position.z=-11-sw*4; syrVM.position.y=-9.5+Math.sin(headBob+.6)*0.7; }
+    vm.position.y=vmY+Math.sin(headBob)*0.8;
+    if(syrVM.visible){ syrVM.position.z=-11-sw*4; syrVM.position.y=syrY+Math.sin(headBob+.6)*0.7; }
   }
 }
 
