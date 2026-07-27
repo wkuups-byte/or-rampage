@@ -8,7 +8,7 @@ if(IS_TOUCH){
   document.getElementById('ctlText').innerHTML=
     '<b>left stick</b> move &nbsp;·&nbsp; <b>drag anywhere else</b> look &nbsp;·&nbsp; <b>tap / SMASH</b> swing mallet &nbsp;·&nbsp; <b>DASH</b> dash<br>'+
     'Smash everything. O₂ tanks explode. Kick buckets were made to be kicked.<br>'+
-    'The staff will not help you. Watch the MOP RADAR. He is already walking.<br>'+
+    'The staff will not help you — but every one of them goes DOWN if you swing. Watch the MOP RADAR.<br>'+
     'Feeling brave? Swing at the janitor. His mop is worth taking — twice, and he drops a syringe.<br>'+
     'Reps shadow the surgeons and keep them calm — bump one for a speed boost, and the demo mallet comes free.';
 }
@@ -1075,7 +1075,7 @@ let vmY=-11, syrY=-9.5;
 function layoutVMs(){
   const portrait=VW/VH<0.8;
   const hHalf=Math.atan(Math.tan(baseFov()*Math.PI/360)*(VW/VH));
-  const x=Math.min(11,Math.tan(hHalf)*13*.62);
+  const x=Math.min(11,Math.tan(hHalf)*13*.55);
   mallet.position.x=mopVM.position.x=pmalletVM.position.x=x;
   syrVM.position.x=Math.max(-9,-Math.tan(hHalf)*11*.55);
   vmY=portrait?-5:-11; syrY=portrait?-4.5:-9.5;
@@ -1219,7 +1219,7 @@ function init(){
 }
 function mkNPC(kind,x,y,name){
   return {kind,x,y,name,r:kind==='circ'?21:15,ang:rand(0,7),line:'',lineT:0,say:rand(2,6),
-    tx:x,ty:y,moveT:rand(4,9),throwT:rand(3,6),feeT:0,bump:0,bob:Math.random()*7,knock:{x:0,y:0},vx:0,vy:0};
+    tx:x,ty:y,moveT:rand(4,9),throwT:rand(3,6),feeT:0,bump:0,bob:Math.random()*7,knock:{x:0,y:0},vx:0,vy:0,downT:0};
 }
 
 /* ============================== sim helpers ============================== */
@@ -1313,8 +1313,8 @@ function triggerEvent(){
       const base=Math.atan2(player.y-b.y,player.x-b.x);
       for(let i=-2;i<=2;i++) projs.push(mkPizza(b.x,b.y,base+i*.22)); sfxThud(); } }
   else if(ev==='tantrum'){ showBanner('SURGEON TANTRUM');
-    for(const n of npcs){ if(n.kind!=='surg') continue;
-      if(n.rep&&dist(n.rep,n)<REP_CALM_R){ say(n.rep,pick(REP_CALM)); continue; }
+    for(const n of npcs){ if(n.kind!=='surg'||n.downT>0) continue;
+      if(n.rep&&n.rep.downT<=0&&dist(n.rep,n)<REP_CALM_R){ say(n.rep,pick(REP_CALM)); continue; }
       say(n,pick(["WRONG. IMPLANT.","I ASKED FOR JAZZ!!","WHO SCHEDULED THIS?!"]));
       for(let i=0;i<6;i++) projs.push(mkScalpel(n.x,n.y,i/6*Math.PI*2,320)); }
     sfxZap(); sfxCrash(); }
@@ -1510,26 +1510,28 @@ function npcBumped(n,hit){
   }
   else if(n.kind==='gas'){ say(n,pick(GAS_BUMP)); }
   else if(n.kind==='rep'){
-    let gaveMallet=false;
-    if((n.malletCd||0)<=0){
-      n.malletCd=24; pMalletT=10; gaveMallet=true;
-      if(mopT<=0){ mallet.visible=false; pmalletVM.visible=true; }
-      say(n,pick(REP_MALLET));
-      showBanner('STRYKER DEMO MALLET!');
-      addPop(player.x,player.y,'POWER MALLET','#ffd27a',18,80);
-      burst(n.x,n.y,14,'#ffd27a',220,.8);
-      sfxClang(); sfxBeep(880,.09,.06); sfxBeep(1174,.09,.05);
-    }
-    if((n.boostCd||0)<=0){
-      n.boostCd=10; player.boostT=5;
-      addPop(player.x,player.y,'SPEED BOOST','#8affc1',16,80);
-      if(!gaveMallet){
-        say(n,pick(REP_BOOST));
-        showBanner('STRYKER POWER-UP!');
-        burst(n.x,n.y,14,'#ffb52e',220,.8);
-        sfxWhoosh(); sfxBeep(1320,.09,.06); sfxBeep(1760,.09,.05);
+    if(n.downT<=0){   // floor merchandise is not for sale
+      let gaveMallet=false;
+      if((n.malletCd||0)<=0){
+        n.malletCd=24; pMalletT=10; gaveMallet=true;
+        if(mopT<=0){ mallet.visible=false; pmalletVM.visible=true; }
+        say(n,pick(REP_MALLET));
+        showBanner('STRYKER DEMO MALLET!');
+        addPop(player.x,player.y,'POWER MALLET','#ffd27a',18,80);
+        burst(n.x,n.y,14,'#ffd27a',220,.8);
+        sfxClang(); sfxBeep(880,.09,.06); sfxBeep(1174,.09,.05);
       }
-    } else if(!gaveMallet) say(n,pick(REP_IDLE));
+      if((n.boostCd||0)<=0){
+        n.boostCd=10; player.boostT=5;
+        addPop(player.x,player.y,'SPEED BOOST','#8affc1',16,80);
+        if(!gaveMallet){
+          say(n,pick(REP_BOOST));
+          showBanner('STRYKER POWER-UP!');
+          burst(n.x,n.y,14,'#ffb52e',220,.8);
+          sfxWhoosh(); sfxBeep(1320,.09,.06); sfxBeep(1760,.09,.05);
+        }
+      } else if(!gaveMallet) say(n,pick(REP_IDLE));
+    }
   }
   else if(n.kind==='admin'){ say(n,pick(ADMIN_HIT));
     if(hit&&Math.random()<.35){ score+=150; updateHUD();
@@ -1537,7 +1539,9 @@ function npcBumped(n,hit){
   else { say(n,pick(SURG_MAD)); n.throwT=Math.min(n.throwT,.5); }
   if(hit){ const d=Math.max(dist(n,player),1);
     n.knock.x+=(n.x-player.x)/d*(n.kind==='circ'?60:140);
-    n.knock.y+=(n.y-player.y)/d*(n.kind==='circ'?60:140); sfxThud(); }
+    n.knock.y+=(n.y-player.y)/d*(n.kind==='circ'?60:140); sfxThud();
+    if(n.downT<=0) addPop(n.x,n.y,'DOWN','#ffd27a',14,60);
+    n.downT=rand(2.5,4); }
 }
 
 /* ============================== update ============================== */
@@ -1682,6 +1686,13 @@ function updateNPC(n,dt){
   n.lineT-=dt; n.bump-=dt; n.say-=dt; n.moveT-=dt; n.bob+=dt;
   if(Math.hypot(n.knock.x,n.knock.y)>4){ n.vx=n.knock.x; n.vy=n.knock.y; moveCircle(n,dt); }
   n.knock.x*=.85; n.knock.y*=.85;
+  if(n.downT>0){
+    n.downT-=dt;
+    n.mesh.position.set(n.x,6,n.y);
+    n.mesh.rotation.z=-Math.PI/2+Math.sin(n.bob*8)*.04;
+    if(n.downT<=0){ n.mesh.rotation.z=0; n.mesh.position.y=0; }
+    return;
+  }
   const pd=dist(n,player);
   if(n.kind==='circ'){
     if(n.say<=0&&n.lineT<=0&&pd<420){ say(n,pick(CIRC_IDLE)); n.say=rand(5,9); }
@@ -1736,7 +1747,7 @@ function updateNPC(n,dt){
     n.ang=Math.atan2(n.vy,n.vx);
     n.throwT-=dt;
     if(n.throwT<=0&&pd<560){
-      if(n.rep&&dist(n.rep,n)<REP_CALM_R){ n.throwT=rand(2.5,4.5);
+      if(n.rep&&n.rep.downT<=0&&dist(n.rep,n)<REP_CALM_R){ n.throwT=rand(2.5,4.5);
         if(Math.random()<.6) say(n.rep,pick(REP_CALM)); }
       else { n.throwT=rand(3.5,6.5);
         const a=Math.atan2(player.y-n.y,player.x-n.x)+rand(-.1,.1);
