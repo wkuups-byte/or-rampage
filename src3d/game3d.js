@@ -1084,6 +1084,7 @@ function layoutVMs(){
   const hHalf=Math.atan(Math.tan(baseFov()*Math.PI/360)*(VW/VH));
   const x=Math.min(11,Math.tan(hHalf)*13*.55);
   mallet.position.x=mopVM.position.x=pmalletVM.position.x=x;
+  mallet.userData.bx=mopVM.userData.bx=pmalletVM.userData.bx=x;
   syrVM.position.x=Math.max(-9,-Math.tan(hHalf)*11*.55);
   vmY=portrait?-5:-11; syrY=portrait?-4.5:-9.5;
 }
@@ -2032,13 +2033,19 @@ function syncVisuals(dt){
     else el.style.display='none'; }
   // crosshair hint
   crossDot.style.opacity=aimTarget()?1:0;
-  // mallet swing pose
+  // mallet swing pose: overhead chop — cock up over the shoulder, then slam
+  // straight down through the middle. raise peaks early, slam carries the rest.
   if(player){
-    const sw=player.swing>0? Math.sin((0.26-player.swing)/0.26*Math.PI) : 0;
+    const t=player.swing>0? (0.26-player.swing)/0.26 : 0;
+    const sw=Math.sin(t*Math.PI);
+    const raise=Math.sin(Math.PI*Math.min(t/.4,1));
+    const slam=t<.25?0:Math.sin(Math.PI*(t-.25)/.75);
     const vm=mopT>0?mopVM:pMalletT>0?pmalletVM:mallet;
-    vm.rotation.x=(vm===mopVM?0.5:0.6)-sw*1.9;
-    vm.position.z=-13-sw*6;
-    vm.position.y=vmY+Math.sin(headBob)*0.8;
+    vm.rotation.x=(vm===mopVM?0.5:0.6)+raise*.5-slam*2.1;
+    vm.rotation.z=(vm===mopVM?0.12:0.15)-slam*.18;
+    vm.position.x=(vm.userData.bx!==undefined?vm.userData.bx:vm.position.x)-slam*2;
+    vm.position.z=-13-slam*7;
+    vm.position.y=vmY+Math.sin(headBob)*0.8+raise*1.2-slam*3.5;
     if(syrVM.visible){ syrVM.position.z=-11-sw*4; syrVM.position.y=syrY+Math.sin(headBob+.6)*0.7; }
   }
 }
