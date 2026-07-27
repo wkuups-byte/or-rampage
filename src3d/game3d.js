@@ -2089,15 +2089,55 @@ if(/[?&]vmdebug=1/.test(location.search)){
   const el=document.createElement('div');
   el.style.cssText='position:fixed;left:4px;top:40%;z-index:99;background:#000c;color:#4f8;font:11px monospace;padding:5px;white-space:pre;pointer-events:none';
   document.body.appendChild(el);
+  const box=document.createElement('div');
+  box.style.cssText='position:fixed;z-index:98;border:2px dashed #f33;pointer-events:none;display:none';
+  document.body.appendChild(box);
   let drawn=0;
   for(const g of [mallet,mopVM,pmalletVM,syrVM]) g.traverse(o=>{ if(o.isMesh) o.onAfterRender=()=>{ drawn=performance.now(); }; });
   const errs=[];
   addEventListener('error',e=>{ if(errs.length<3) errs.push(String(e.message).slice(0,60)); });
+  let pxCount='n/a';
+  const pxTest=()=>{
+    const active=mopT>0?mopVM:pMalletT>0?pmalletVM:mallet;
+    const gl=renderer.getContext();
+    const W2=gl.drawingBufferWidth, H2=gl.drawingBufferHeight;
+    const cap=()=>{ const b=new Uint8Array(W2*H2*4);
+      renderer.render(scene,camera);
+      renderer.autoClear=false; renderer.clearDepth();
+      renderer.render(vmScene,vmCam);
+      renderer.autoClear=true;
+      gl.readPixels(0,0,W2,H2,gl.RGBA,gl.UNSIGNED_BYTE,b); return b; };
+    const wasVis=active.visible;
+    const a=cap(); active.visible=false; const b=cap(); active.visible=wasVis;
+    let c=0;
+    for(let i=0;i<a.length;i+=8)
+      if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])>24) c++;
+    pxCount=c;
+  };
+  setInterval(pxTest,2000);
+  const corners=new THREE.Box3(), v=new THREE.Vector3();
   setInterval(()=>{
     const active=mopT>0?mopVM:pMalletT>0?pmalletVM:mallet;
-    el.textContent='vm drawn: '+(performance.now()-drawn<400?'YES':'NO')
+    // outline where the weapon should land on screen
+    corners.setFromObject(active);
+    if(!corners.isEmpty()){
+      let mnx=2,mny=2,mxx=-2,mxy=-2;
+      for(let i=0;i<8;i++){
+        v.set(i&1?corners.max.x:corners.min.x, i&2?corners.max.y:corners.min.y, i&4?corners.max.z:corners.min.z);
+        v.project(vmCam);
+        mnx=Math.min(mnx,v.x); mxx=Math.max(mxx,v.x); mny=Math.min(mny,v.y); mxy=Math.max(mxy,v.y);
+      }
+      box.style.display='block';
+      box.style.left=((mnx*.5+.5)*VW)+'px';
+      box.style.width=((mxx-mnx)*.5*VW)+'px';
+      box.style.top=((-mxy*.5+.5)*VH)+'px';
+      box.style.height=((mxy-mny)*.5*VH)+'px';
+    }
+    el.textContent='vm drawn: '+(performance.now()-drawn<400?'YES':'NO')+'  px: '+pxCount
       +'\nactive '+(mopT>0?'mop':pMalletT>0?'pmallet':'mallet')+' visible '+active.visible
       +'\nfov '+camera.fov.toFixed(0)+' asp '+camera.aspect.toFixed(2)+' '+VW+'x'+VH+' dpr '+(devicePixelRatio||1)
+      +'\nbuf '+renderer.getContext().drawingBufferWidth+'x'+renderer.getContext().drawingBufferHeight
+      +' gl2 '+(renderer.capabilities.isWebGL2?'Y':'N')
       +'\nvm x '+active.position.x.toFixed(1)+' y '+active.position.y.toFixed(1)
       +'\ntex loaded: '+(Object.keys(texImg).join(',')||'NONE')
       +(errs.length?'\nerr: '+errs.join(' | '):'');
