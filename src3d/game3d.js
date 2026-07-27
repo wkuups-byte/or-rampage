@@ -1016,6 +1016,13 @@ function buildPlayerBody(){
   return g;
 }
 
+/* weapons draw in their own overlay pass — camera-child rendering proved unreliable
+   on at least one mobile browser, and this also keeps the weapon out of the walls */
+const vmScene=new THREE.Scene();
+const vmCam=new THREE.PerspectiveCamera(baseFov(),VW/VH,0.5,100);
+vmScene.add(new THREE.AmbientLight(0xffffff,.75));
+{ const dl=new THREE.DirectionalLight(0xffffff,.7); dl.position.set(1,2,1); vmScene.add(dl); }
+
 /* mallet viewmodel */
 const mallet=new THREE.Group();
 { const handle=cyl(mallet,1.7,1.7,30,'#7a5230',0,0,-15); handle.rotation.x=Math.PI/2;
@@ -1024,7 +1031,7 @@ const mallet=new THREE.Group();
   sph(mallet,4,'#f0f4f2',0,-1,-8);
   mallet.scale.setScalar(0.55);
   mallet.position.set(11,-11,-13); mallet.rotation.set(0.6,-0.35,0.15);
-  camera.add(mallet); }
+  vmScene.add(mallet); }
 
 /* the janitor's mop, once it's yours. the stains are not paint. */
 const mopVM=new THREE.Group();
@@ -1039,7 +1046,7 @@ const mopVM=new THREE.Group();
   mopVM.scale.setScalar(0.55);
   mopVM.position.set(11,-11,-13); mopVM.rotation.set(0.5,-0.3,0.12);
   mopVM.visible=false;
-  camera.add(mopVM); }
+  vmScene.add(mopVM); }
 
 /* the Stryker demo mallet — titanium, off the truck, not technically for sale yet */
 const pmalletVM=new THREE.Group();
@@ -1053,7 +1060,7 @@ const pmalletVM=new THREE.Group();
   pmalletVM.scale.setScalar(0.55);
   pmalletVM.position.set(11,-11,-13); pmalletVM.rotation.set(0.6,-0.35,0.15);
   pmalletVM.visible=false;
-  camera.add(pmalletVM); }
+  vmScene.add(pmalletVM); }
 
 /* the syringe — off-hand, found the second time you drop him */
 const syrVM=new THREE.Group();
@@ -1066,7 +1073,7 @@ const syrVM=new THREE.Group();
   sph(syrVM,3.4,'#f0d8c0',0,-1.5,-9);
   syrVM.position.set(-9,-9.5,-11); syrVM.rotation.set(0.35,0.25,-0.1);
   syrVM.visible=false;
-  camera.add(syrVM); }
+  vmScene.add(syrVM); }
 
 /* portrait phones have a narrow horizontal FOV — pull the viewmodels toward center
    and up so they stay on screen (x=11,y=-11 at z=-13 sits past the edge / behind the
@@ -2048,6 +2055,11 @@ function frame(ts){
   }
   syncVisuals(dt);
   renderer.render(scene,camera);
+  vmCam.fov=camera.fov; vmCam.aspect=camera.aspect; vmCam.updateProjectionMatrix();
+  vmCam.rotation.z=camera.rotation.z;
+  renderer.autoClear=false; renderer.clearDepth();
+  renderer.render(vmScene,vmCam);
+  renderer.autoClear=true;
 }
 requestAnimationFrame(frame);
 
@@ -2070,4 +2082,24 @@ if(/[?&]debug=1/.test(location.search)){
     tp:(x,y,yaw,pitch)=>{ player.x=x; player.y=y;
       if(yaw!==undefined) camYaw=yaw; if(pitch!==undefined) camPitch=pitch; },
   };
+}
+
+/* on-device readout (?vmdebug=1) for chasing the phones-don't-show-the-weapon report */
+if(/[?&]vmdebug=1/.test(location.search)){
+  const el=document.createElement('div');
+  el.style.cssText='position:fixed;left:4px;top:40%;z-index:99;background:#000c;color:#4f8;font:11px monospace;padding:5px;white-space:pre;pointer-events:none';
+  document.body.appendChild(el);
+  let drawn=0;
+  for(const g of [mallet,mopVM,pmalletVM,syrVM]) g.traverse(o=>{ if(o.isMesh) o.onAfterRender=()=>{ drawn=performance.now(); }; });
+  const errs=[];
+  addEventListener('error',e=>{ if(errs.length<3) errs.push(String(e.message).slice(0,60)); });
+  setInterval(()=>{
+    const active=mopT>0?mopVM:pMalletT>0?pmalletVM:mallet;
+    el.textContent='vm drawn: '+(performance.now()-drawn<400?'YES':'NO')
+      +'\nactive '+(mopT>0?'mop':pMalletT>0?'pmallet':'mallet')+' visible '+active.visible
+      +'\nfov '+camera.fov.toFixed(0)+' asp '+camera.aspect.toFixed(2)+' '+VW+'x'+VH+' dpr '+(devicePixelRatio||1)
+      +'\nvm x '+active.position.x.toFixed(1)+' y '+active.position.y.toFixed(1)
+      +'\ntex loaded: '+(Object.keys(texImg).join(',')||'NONE')
+      +(errs.length?'\nerr: '+errs.join(' | '):'');
+  },500);
 }
