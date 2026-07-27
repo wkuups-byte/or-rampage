@@ -1026,7 +1026,7 @@ vmScene.add(new THREE.AmbientLight(0xffffff,.75));
 /* mallet viewmodel */
 const mallet=new THREE.Group();
 { const handle=cyl(mallet,1.7,1.7,30,'#7a5230',0,0,-15); handle.rotation.x=Math.PI/2;
-  bx(mallet,11,8,8,'#4a4f52',0,0,-31); bx(mallet,11,2.6,8,'#6a7175',0,3.6,-31);
+  bx(mallet,8,14,8,'#4a4f52',0,-1,-31); bx(mallet,8.4,3,8.4,'#6a7175',0,-7,-31);
   const arm=cyl(mallet,3.2,4.2,20,'#2e8f86',4,-6,-1); arm.rotation.x=1.15; arm.rotation.z=-.35;
   sph(mallet,4,'#f0f4f2',0,-1,-8);
   mallet.scale.setScalar(0.55);
@@ -1051,9 +1051,9 @@ const mopVM=new THREE.Group();
 /* the Stryker demo mallet — titanium, off the truck, not technically for sale yet */
 const pmalletVM=new THREE.Group();
 { const handle=cyl(pmalletVM,1.9,1.9,32,'#3a4048',0,0,-15); handle.rotation.x=Math.PI/2;
-  shiny(bx(pmalletVM,14,10,10,'#c9d4d2',0,0,-32));
-  shiny(bx(pmalletVM,14,3,10,'#e8eef0',0,4.6,-32));
-  bx(pmalletVM,14.4,2,10.4,'#f4d648',0,-1,-32,true);          // the gold band. branding.
+  shiny(bx(pmalletVM,10,16,10,'#c9d4d2',0,-1,-32));
+  shiny(bx(pmalletVM,10.4,3,10.4,'#e8eef0',0,-8,-32));        // the striking cap
+  bx(pmalletVM,10.6,2,10.6,'#f4d648',0,3,-32,true);           // the gold band. branding.
   bx(pmalletVM,6,3,.6,'#f4d648',0,0,-26.6,true);
   const arm=cyl(pmalletVM,3.2,4.2,20,'#2e8f86',4,-6,-1); arm.rotation.x=1.15; arm.rotation.z=-.35;
   sph(pmalletVM,4,'#f0d8c0',0,-1,-8);
@@ -2041,11 +2041,12 @@ function syncVisuals(dt){
     const raise=Math.sin(Math.PI*Math.min(t/.4,1));
     const slam=t<.25?0:Math.sin(Math.PI*(t-.25)/.75);
     const vm=mopT>0?mopVM:pMalletT>0?pmalletVM:mallet;
-    vm.rotation.x=(vm===mopVM?0.5:0.6)+raise*.5-slam*2.1;
+    vm.rotation.x=(vm===mopVM?0.5:0.6)+raise*.5-slam*1.6;
     vm.rotation.z=(vm===mopVM?0.12:0.15)-slam*.18;
     vm.position.x=(vm.userData.bx!==undefined?vm.userData.bx:vm.position.x)-slam*2;
-    vm.position.z=-13-slam*7;
-    vm.position.y=vmY+Math.sin(headBob)*0.8+raise*1.2-slam*3.5;
+    vm.position.z=-13-slam*5.5;
+    // the grip rises as the pitch drops so the head's arc stays in frame at impact
+    vm.position.y=vmY+Math.sin(headBob)*0.8+raise*1.2+slam*1.0;
     if(syrVM.visible){ syrVM.position.z=-11-sw*4; syrVM.position.y=syrY+Math.sin(headBob+.6)*0.7; }
   }
 }
